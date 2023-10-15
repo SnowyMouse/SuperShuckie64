@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "replay-recorder",
+    "replay-recorder-c"
+]

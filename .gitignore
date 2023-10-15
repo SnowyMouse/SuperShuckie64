@@ -1,0 +1,5 @@
+target/
+*.7z
+*.gbc
+*.sav
+Cargo.lock
