@@ -52,7 +52,7 @@ add_library(sameboy STATIC
     "${SAMEBOY_DIR}/Core/workboy.c"
 )
 
-target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} -mconsole)
+target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} -mconsole -lreplay_recorder_c)
 target_include_directories(supershuckie
     PUBLIC ${Qt6Widgets_INCLUDE_DIRS}
     PUBLIC "${SAMEBOY_DIR}/Core"

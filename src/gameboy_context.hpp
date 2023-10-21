@@ -9,6 +9,10 @@ extern "C" {
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <unordered_map>
+#include <optional>
+
+#include "../rs/replay-recorder-c/include/replay_recorder.hpp"
 
 namespace SuperShuckie64 {
     /**
@@ -78,6 +82,17 @@ namespace SuperShuckie64 {
          */
         void set_speed(std::uint16_t new_speed) noexcept;
 
+        bool is_recording() noexcept;
+        void start_replay_recording(const char *rom_name);
+        std::vector<std::byte> get_current_replay_recording_data();
+        void stop_replay_recording();
+
+        bool is_playing_back() noexcept;
+        void start_replay_playback(const std::vector<std::byte> &replay);
+        void stop_replay_playback();
+
+
+
     private:
         void start_thread() noexcept;
         void set_up_gameboy(GB_model_t model, const std::vector<std::byte> &rom) noexcept;
@@ -112,13 +127,26 @@ namespace SuperShuckie64 {
         void on_vblank() noexcept;
         static void on_vblank(GB_gameboy_t *, GB_vblank_type_t) noexcept;
 
+        bool is_recording_inner() const noexcept;
+        bool is_playing_back_inner() const noexcept;
+
         void handle_new_input(std::uint8_t new_input) noexcept;
         void handle_set_speed(std::uint16_t new_speed) noexcept;
 
         std::unique_ptr<GB_gameboy_t, void (*)(GB_gameboy_t *)> gameboy;
 
+        std::unique_ptr<ReplayWriter> replay_recorder;
+        std::optional<ReplayReaderItemCollection> current_playback;
+        std::unordered_map<std::uint32_t, std::vector<std::uint8_t>> replay_states;
+        std::size_t current_playback_offset;
+        std::size_t current_playback_delay;
+        void play_latest_packet();
+
         std::atomic_bool thread_running;
         std::atomic_bool stop_thread;
+
+        std::vector<std::byte> current_rom_data, current_boot_rom_data;
+
 
         void run_thread() noexcept;
     };

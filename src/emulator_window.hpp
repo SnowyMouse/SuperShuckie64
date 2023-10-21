@@ -23,6 +23,8 @@ class QMenu;
 
 struct SDL_ControllerDeviceEvent;
 
+#define RESERVED_REPLAY_PLAYBACK_SAVE_NAME "replay-playback"
+
 namespace SuperShuckie64 {
     class EmulatorWindow : public QMainWindow {
         Q_OBJECT
@@ -40,6 +42,7 @@ namespace SuperShuckie64 {
         std::string current_save_name;
         std::string displayed_save_name;
 
+        bool currently_playing_back_recording = false;
         bool suppress_game_input = false;
         bool valid = false;
         double base_speed = 1.0;
@@ -105,6 +108,10 @@ namespace SuperShuckie64 {
         void new_game();
         void load_game();
         void save_sram_new();
+        void start_replay_recording();
+        void stop_replay_recording();
+        void load_replay();
+        void stop_replay();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

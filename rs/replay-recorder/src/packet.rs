@@ -74,6 +74,10 @@ pub enum PacketType {
     SetInputData64 = 11,
     AddSaveState = 12,
     LoadSaveState = 13,
+    WriteRAMByteAddr32 = 14,
+    WriteRAMByteAddr64 = 15,
+    WriteROMByteOffset32 = 16,
+    WriteROMByteOffset64 = 17,
     NoOp = 255, // will generally be accompanied by another 0xFF byte, so it might be compression bait
 }
 
@@ -95,6 +99,8 @@ impl TryFrom<u8> for PacketType {
              11 => Ok(PacketType::SetInputData64),
              12 => Ok(PacketType::AddSaveState),
              13 => Ok(PacketType::LoadSaveState),
+             14 => Ok(PacketType::WriteRAMByteAddr32),
+             15 => Ok(PacketType::WriteROMByteOffset32),
             255 => Ok(PacketType::NoOp),
             _ => Err(())
         }
@@ -343,3 +349,34 @@ impl Packet for LoadSaveState {
     }
     fn as_any(&self) -> &dyn Any { self }
 }
+
+macro_rules! make_write_byte_to_addr {
+    ($name:tt, $addr_width:tt, $addr_name:tt, $doc:tt) => {
+        #[doc = $doc]
+        #[derive(Clone, PartialEq, Default, Debug)]
+        pub struct $name {
+            pub $addr_name: $addr_width,
+            pub byte: u8
+        }
+        impl Packet for $name {
+            fn get_packet_type() -> PacketType { PacketType::$name }
+            fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
+                io_to_load_err!(w.write_all(&self.$addr_name.to_be_bytes()))?;
+                io_to_load_err!(w.write_all(&self.byte.to_be_bytes()))?;
+                Ok(())
+            }
+            fn read<R: Read>(r: &mut R) -> LoadResult<Self> {
+                Ok(Self {
+                    $addr_name: read_bytes!(r, $addr_width)?,
+                    byte: read_bytes!(r, u8)?
+                })
+            }
+            fn as_any(&self) -> &dyn Any { self }
+        }
+    };
+}
+
+make_write_byte_to_addr!(WriteRAMByteAddr32, u32, addr, "Write a byte into RAM at the address.\n\nThe address is device-specific. For example, a 16-bit address space may use the upper 16 bits to define a bank or segment, while the lower 16-bits would be the actual address.\n\nThis can manipulate ROM data, too, such as ROMs that accept writes and do things like bank switching.");
+make_write_byte_to_addr!(WriteRAMByteAddr64, u64, addr, "Write a byte into RAM at the address.\n\nThe address is device-specific. For example, a 32-bit address space may use the upper 32 bits to define a bank or segment, while the lower 32-bits would be the actual address.\n\nThis can manipulate ROM data, too, such as ROMs that accept writes and do things like bank switching.");
+make_write_byte_to_addr!(WriteROMByteOffset32, u32, offset, "Write a byte into ROM at the offset.\n\nThis is for overwriting data on the ROM itself at a given offset rather than the memory.");
+make_write_byte_to_addr!(WriteROMByteOffset64, u64, offset, "Write a byte into ROM at the offset.\n\nThis is for overwriting data on the ROM itself at a given offset rather than the memory.");

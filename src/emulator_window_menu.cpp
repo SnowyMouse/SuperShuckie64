@@ -49,8 +49,12 @@ void EmulatorWindow::set_up_menu() {
 
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("New game...", this->gameplay_menu, new_game(), QKeyCombination(Qt::ControlModifier, Qt::Key_N));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Load game...", this->gameplay_menu, load_game(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_O));
-    file_menu->addSeparator();
-    //ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Record replay...", this->gameplay_menu, start_replay(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
+    this->gameplay_menu->addSeparator();
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->gameplay_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->gameplay_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
+    this->gameplay_menu->addSeparator();
+    ADD_ACTION_AND_CONNECT("Load replay...", this->gameplay_menu, load_replay());
+    ADD_ACTION_AND_CONNECT("Stop replay", this->gameplay_menu, stop_replay());
 }
 
 
@@ -82,11 +86,55 @@ static std::optional<std::string> ask_for_save_game(const char *title) {
     return save_name->text().toStdString();
 }
 
+void EmulatorWindow::save_sram() {
+    if(!this->current_rom) {
+        this->set_window_title_element("Can't save - no ROM loaded!");
+        return; // no rom loaded
+    }
+
+    if(this->current_save_name.empty()) {
+        this->set_window_title_element("Can't save - no save loaded!");
+        return;
+    }
+
+    if(this->current_save_name == RESERVED_REPLAY_PLAYBACK_SAVE_NAME) {
+        if(this->gameboy->is_playing_back()) {
+            return; // no need to save if playing back
+        }
+
+        QMessageBox msg;
+        msg.setWindowTitle("Save replay SRAM?");
+        msg.setText("The replay finished playback, but there may be additional, unsaved changes to the save data, with no game on disk to save it to.\n\nWould you like to save it as a new game?");
+        msg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msg.setDefaultButton(QMessageBox::Yes);
+        msg.setIcon(QMessageBox::Question);
+
+        if(msg.exec() == QMessageBox::Yes) {
+            this->save_sram_new();
+        }
+
+        return;
+    }
+
+    auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
+    if(write_file(sram, this->gameboy->get_sram())) {
+        this->set_window_title_element("Saved SRAM successfully!");
+    }
+    else {
+        this->set_window_title_element("Failed to write SRAM.");
+    }
+}
+
 void EmulatorWindow::new_game() {
     auto new_game = ask_for_save_game("New game");
     if(!new_game) {
         return;
     }
+    if(new_game == RESERVED_REPLAY_PLAYBACK_SAVE_NAME) {
+        DISPLAY_ERROR_DIALOG("Invalid game name", RESERVED_REPLAY_PLAYBACK_SAVE_NAME " is reserved and can't be used.");
+        return;
+    }
+
     auto &result = *new_game;
 
     auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, result.c_str());
@@ -151,17 +199,47 @@ void EmulatorWindow::save_sram_new() {
     this->save_sram();
 }
 
-void EmulatorWindow::load_game() {
-    QDialog ask_for_load_game;
-    ask_for_load_game.setWindowTitle("Load game");
+static std::optional<std::string> choose_from_list(const char *title, const char *prompt, const std::vector<std::string> &options, const char *default_selection) {
+    QDialog dialog;
+    dialog.setWindowTitle(title);
 
-    auto *layout = new QVBoxLayout(&ask_for_load_game);
-    layout->addWidget(new QLabel("Select a save file to load:", &ask_for_load_game));
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->addWidget(new QLabel(prompt, &dialog));
 
-    auto *list = new QListWidget(&ask_for_load_game);
+    auto *list = new QListWidget(&dialog);
     layout->addWidget(list);
 
+    for(auto &i : options) {
+        list->addItem(i.c_str());
+    }
+
+    list->sortItems();
+
+    if(default_selection) {
+        auto selected = list->findItems(default_selection, Qt::MatchExactly);
+        if(selected.size() > 0) {
+            list->setCurrentItem(selected[0]);
+        }
+        else {
+            list->setCurrentRow(0);
+        }
+    }
+
+    dialog.setFixedWidth(dialog.sizeHint().width());
+    dialog.setFixedHeight(std::min(500, dialog.sizeHint().height()));
+
+    list->connect(list, SIGNAL(itemActivated(QListWidgetItem *)), &dialog, SLOT(accept()));
+
+    if(dialog.exec() != QDialog::Accepted || list->selectedItems().size() != 1) {
+        return std::nullopt;
+    }
+
+    return list->selectedItems()[0]->text().toStdString();
+}
+
+void EmulatorWindow::load_game() {
     // Get all current SRAMs
+    std::vector<std::string> list;
     auto srams = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData);
     for(auto i : std::filesystem::directory_iterator(srams)) {
         auto basename = i.path().filename().replace_extension().string();
@@ -169,35 +247,21 @@ void EmulatorWindow::load_game() {
         if(!std::filesystem::exists(path) || basename.empty()) {
             continue;
         }
-        list->addItem(basename.c_str());
+        list.emplace_back(basename.c_str());
     }
 
-    if(list->count() == 0) {
+    if(list.empty()) {
         DISPLAY_ERROR_DIALOG("No save files found", "You do not have any save files for %s", this->current_rom_name.c_str());
         return;
     }
 
-    list->sortItems();
-
-    auto current_sram_maybe = list->findItems(this->current_save_name.c_str(), Qt::MatchExactly);
-    if(current_sram_maybe.size() > 0) {
-        list->setCurrentItem(current_sram_maybe[0]);
-    }
-    else {
-        list->setCurrentRow(0);
-    }
-
-    ask_for_load_game.setFixedWidth(ask_for_load_game.sizeHint().width());
-    ask_for_load_game.setFixedHeight(std::min(500, ask_for_load_game.sizeHint().height()));
-
-    connect(list, SIGNAL(itemActivated(QListWidgetItem *)), &ask_for_load_game, SLOT(accept()));
-
-    if(ask_for_load_game.exec() != QDialog::Accepted || list->selectedItems().size() != 1) {
+    auto selection = choose_from_list("Load save file", "Choose a save file to load:", list, this->current_save_name.c_str());
+    if(!selection) {
         return;
     }
 
     this->save_sram();
-    this->switch_sram(list->selectedItems()[0]->text().toStdString());
+    this->switch_sram(*selection);
 }
 
 void EmulatorWindow::switch_sram(const std::string &new_sram) {
@@ -216,6 +280,10 @@ void EmulatorWindow::open_rom_dialog() {
 
     auto files = rom_opener.selectedFiles();
     if(files.size() != 1) {
+        return;
+    }
+
+    if(!this->load_rom(files[0].toStdString())) {
         return;
     }
 
@@ -252,4 +320,104 @@ void EmulatorWindow::reload_speed_settings() noexcept {
     this->turbo_speed = settings.value("speed/turbo", this->turbo_speed).toDouble();
     this->slow_speed = settings.value("speed/slow", this->slow_speed).toDouble();
     this->update_gameboy_speed();
+}
+
+void EmulatorWindow::start_replay_recording() {
+    if(!this->current_rom) {
+        this->set_window_title_element("Can't start a replay recording - no ROM loaded!");
+        return;
+    }
+    if(this->gameboy->is_recording()) {
+        this->set_window_title_element("Can't start a replay recording - already recording!");
+        return;
+    }
+    this->gameboy->start_replay_recording(current_rom_name.c_str());
+    this->set_window_title_element("Replay started!");
+}
+
+void EmulatorWindow::stop_replay_recording() {
+    if(!this->current_rom) {
+        this->set_window_title_element("Can't start a replay recording - no ROM loaded!");
+        return;
+    }
+    if(!this->gameboy->is_recording()) {
+        this->set_window_title_element("Can't stop a replay recording - not recording!");
+        return;
+    }
+    auto current_recording = this->gameboy->get_current_replay_recording_data();
+    this->gameboy->stop_replay_recording();
+
+    unsigned int c = 0;
+    while(true) {
+        char fmt[512];
+        std::snprintf(fmt, sizeof(fmt), "%s-%u", current_save_name.c_str(), c);
+        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, fmt);
+        if(!std::filesystem::exists(path)) {
+            if(!write_file(path, current_recording)) {
+                DISPLAY_ERROR_DIALOG("Failed to save replay", "Could not write replay file %s", fmt);
+                return;
+            }
+            char fmt_result[600];
+            std::snprintf(fmt_result, sizeof(fmt_result), "Replay written to %s", fmt);
+            this->set_window_title_element(fmt_result);
+            break;
+        }
+        c++;
+    }
+
+}
+
+void EmulatorWindow::load_replay() {
+    // Get all current replays
+    std::vector<std::string> list;
+    auto replays = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays);
+    for(auto i : std::filesystem::directory_iterator(replays)) {
+        auto basename = i.path().filename().replace_extension().string();
+        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, basename.c_str());
+        if(!std::filesystem::exists(path) || basename.empty()) {
+            continue;
+        }
+        list.emplace_back(basename.c_str());
+    }
+
+    if(list.empty()) {
+        DISPLAY_ERROR_DIALOG("No replays found", "You do not have any replays for %s", this->current_rom_name.c_str());
+        return;
+    }
+
+    auto selection = choose_from_list("Load replay", "Choose a replay to load:", list, this->current_save_name.c_str());
+    if(!selection) {
+        return;
+    }
+
+    auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, selection->c_str());
+    auto file = read_file(path);
+    if(!file) {
+        DISPLAY_ERROR_DIALOG("Failed to open replay", "Couldn't open %s", selection->c_str());
+        return;
+    }
+
+    // Save what we have
+    this->save_sram();
+
+    // Reload the emulator
+    this->current_save_name = RESERVED_REPLAY_PLAYBACK_SAVE_NAME;
+    this->reload_current_rom_data();
+    this->gameboy->start_replay_playback(*file);
+    this->currently_playing_back_recording = true;
+
+    char fmt[600];
+    std::snprintf(fmt, sizeof(fmt), "Loaded replay %s", selection->c_str());
+    this->set_window_title_element(fmt);
+    this->gameboy->set_paused(false);
+}
+
+void EmulatorWindow::stop_replay() {
+    if(!this->gameboy->is_playing_back()) {
+        this->set_window_title_element("Can't stop a replay playback - not playing back!");
+        return;
+    }
+    this->currently_playing_back_recording = false;
+    this->gameboy->stop_replay_playback();
+    this->revert_window_title();
 }

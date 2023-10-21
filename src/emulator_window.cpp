@@ -22,8 +22,8 @@ using namespace SuperShuckie64;
 static std::vector<std::byte> rom_from_path(const std::optional<std::filesystem::path> &path) noexcept {
     if(!path) {
         return std::vector<std::byte>(
-            reinterpret_cast<std::byte *>(AUTOGEN_DEFAULTROM_HPP_VAL),
-            reinterpret_cast<std::byte *>(AUTOGEN_DEFAULTROM_HPP_VAL) + sizeof(AUTOGEN_DEFAULTROM_HPP_VAL)
+            reinterpret_cast<const std::byte *>(AUTOGEN_DEFAULTROM_HPP_VAL),
+            reinterpret_cast<const std::byte *>(AUTOGEN_DEFAULTROM_HPP_VAL) + sizeof(AUTOGEN_DEFAULTROM_HPP_VAL)
         );
     }
 
@@ -95,6 +95,7 @@ bool EmulatorWindow::load_rom(const std::optional<std::filesystem::path> &path) 
 
 void EmulatorWindow::reload_current_rom_data() {
     this->gameboy = std::make_unique<GameboyContext>(GB_model_t::GB_MODEL_CGB_B, this->current_rom_data);
+    this->currently_playing_back_recording = false;
 
     if(this->current_rom) {
         auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
@@ -114,26 +115,6 @@ void EmulatorWindow::update_save_name_in_title_bar() {
     }
     else {
         this->displayed_save_name = std::string(" (") + this->current_save_name + ")";
-    }
-}
-
-void EmulatorWindow::save_sram() {
-    if(!this->current_rom) {
-        this->set_window_title_element("Can't save - no ROM loaded!");
-        return; // no rom loaded
-    }
-
-    if(this->current_save_name.empty()) {
-        this->set_window_title_element("Can't save - no save loaded!");
-        return;
-    }
-
-    auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
-    if(write_file(sram, this->gameboy->get_sram())) {
-        this->set_window_title_element("Saved SRAM successfully!");
-    }
-    else {
-        this->set_window_title_element("Failed to write SRAM.");
     }
 }
 
@@ -229,6 +210,12 @@ void EmulatorWindow::tick() {
         }
     }
 
+    // If we're no longer playing back, we should note this to the user
+    if(this->currently_playing_back_recording && !this->gameboy->is_playing_back()) {
+        this->currently_playing_back_recording = false;
+        this->set_window_title_element("Playback ended");
+    }
+
     // Do we change the window title back to normal?
     if(this->revert_window_title_timer != std::nullopt && std::chrono::steady_clock::now() > *this->revert_window_title_timer) {
         this->revert_window_title();
@@ -240,7 +227,16 @@ void EmulatorWindow::revert_window_title() noexcept {
 
     char fmt[1024];
     std::snprintf(fmt, sizeof(fmt), "Super Shuckie 64 (name TBD): %s%s", current_rom == std::nullopt ? "(no ROM loaded)" : current_rom->filename().string().c_str(), this->displayed_save_name.c_str());
+
     this->setWindowTitle(fmt);
+
+    if(this->gameboy->is_recording()) {
+        this->setWindowTitle(this->windowTitle() + " [RECORDING REPLAY]");
+    }
+
+    if(this->gameboy->is_playing_back()) {
+        this->setWindowTitle(this->windowTitle() + " [PLAYING REPLAY]");
+    }
 }
 
 void EmulatorWindow::set_window_title_element(const char *what) noexcept {

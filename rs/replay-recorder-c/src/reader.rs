@@ -238,3 +238,23 @@ pub extern "C" fn RR_ReplayReaderItem_read_CustomData(
     *data = packet.data.as_ptr();
     *data_size = packet.data.len();
 }
+
+macro_rules! make_write_byte_to_addr {
+    ($fn_name:tt, $packet_type:tt, $addr_width:tt, $addr_name:tt) => {
+        #[no_mangle]
+        pub extern "C" fn $fn_name(
+            item: &ReplayReaderItem,
+            byte: &mut u8,
+            $addr_name: &mut $addr_width
+        ) {
+            let packet = get_packet_or_bail!($packet_type, item);
+            *byte = packet.byte;
+            *$addr_name = packet.$addr_name;
+        }
+    }
+}
+
+make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteRAMByteAddr32,   WriteRAMByteAddr32,   u32, addr);
+make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteRAMByteAddr64,   WriteRAMByteAddr64,   u64, addr);
+make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteROMByteOffset32, WriteROMByteOffset32, u32, offset);
+make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteROMByteOffset64, WriteROMByteOffset64, u64, offset);

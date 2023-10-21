@@ -33,6 +33,10 @@ typedef enum RR_PacketType {
     RR_SetInputData64 = 11,
     RR_AddSaveState = 12,
     RR_LoadSaveState = 13,
+    RR_WriteRAMByteAddr32 = 14,
+    RR_WriteRAMByteAddr64 = 15,
+    RR_WriteROMByteOffset32 = 16,
+    RR_WriteROMByteOffset64 = 17,
     RR_NoOp = 255,
 } RR_PacketType;
 
@@ -49,11 +53,15 @@ void RR_ReplayWriter_write_SetInputData16(RR_ReplayWriter *writer, const void *i
 void RR_ReplayWriter_write_SetInputData32(RR_ReplayWriter *writer, const void *input, size_t input_length);
 void RR_ReplayWriter_write_SetInputData64(RR_ReplayWriter *writer, const void *input, size_t input_length);
 void RR_ReplayWriter_write_LoadSRAM(RR_ReplayWriter *writer, const void *data, size_t data_length);
-void RR_ReplayWriter_write_Bookmark(RR_ReplayWriter *writer, RR_String32 *name);
-void RR_ReplayWriter_write_CustomData(RR_ReplayWriter *writer, RR_String32 *name, const void *data, size_t data_length);
+void RR_ReplayWriter_write_Bookmark(RR_ReplayWriter *writer, const RR_String32 *name);
+void RR_ReplayWriter_write_CustomData(RR_ReplayWriter *writer, const RR_String32 *name, const void *data, size_t data_length);
 void RR_ReplayWriter_write_ChangeGameSpeed(RR_ReplayWriter *writer, uint16_t speed);
 void RR_ReplayWriter_write_AddSaveState(RR_ReplayWriter *writer, uint32_t index, const void *data, size_t data_length);
 void RR_ReplayWriter_write_LoadSaveState(RR_ReplayWriter *writer, uint32_t index);
+void RR_ReplayWriter_write_WriteRAMByteAddr32(RR_ReplayWriter *writer, uint8_t byte, uint32_t addr);
+void RR_ReplayWriter_write_WriteRAMByteAddr64(RR_ReplayWriter *writer, uint8_t byte, uint64_t addr);
+void RR_ReplayWriter_write_WriteROMByteOffset32(RR_ReplayWriter *writer, uint8_t byte, uint32_t offset);
+void RR_ReplayWriter_write_WriteROMByteOffset64(RR_ReplayWriter *writer, uint8_t byte, uint64_t offset);
 
 RR_ReplayReader *RR_ReplayReader_new(const void *stream_data, size_t stream_data_len);
 void RR_ReplayReader_free(RR_ReplayReader *reader);
@@ -62,7 +70,7 @@ RR_ReplayReaderItemCollection *RR_ReplayReader_collect(RR_ReplayReader *reader, 
 
 void RR_ReplayReaderItemCollection_free(RR_ReplayReaderItemCollection *collection);
 size_t RR_ReplayReaderItemCollection_len(RR_ReplayReaderItemCollection *collection);
-const RR_ReplayReaderItem *RR_ReplayReaderItemCollection_get_n(RR_ReplayReaderItemCollection *collection);
+const RR_ReplayReaderItem *RR_ReplayReaderItemCollection_get_n(RR_ReplayReaderItemCollection *collection, size_t n);
 
 uint8_t RR_ReplayReaderItem_get_packet_type(const RR_ReplayReaderItem *item);
 uint8_t RR_ReplayReaderItem_get_delay(const RR_ReplayReaderItem *item);
@@ -80,6 +88,10 @@ void RR_ReplayReaderItem_read_CustomData(const RR_ReplayReaderItem *item, RR_Str
 void RR_ReplayReaderItem_read_ChangeGameSpeed(const RR_ReplayReaderItem *item, uint16_t *speed);
 void RR_ReplayReaderItem_read_AddSaveState(const RR_ReplayReaderItem *item, uint32_t *index, const void **data, size_t *data_length);
 void RR_ReplayReaderItem_read_LoadSaveState(const RR_ReplayReaderItem *item, uint32_t *index);
+void RR_ReplayReaderItem_read_WriteRAMByteAddr32(const RR_ReplayReaderItem *item, uint8_t *byte, uint32_t *addr);
+void RR_ReplayReaderItem_read_WriteRAMByteAddr64(const RR_ReplayReaderItem *item, uint8_t *byte, uint64_t *addr);
+void RR_ReplayReaderItem_read_WriteROMByteOffset32(const RR_ReplayReaderItem *item, uint8_t *byte, uint32_t *offset);
+void RR_ReplayReaderItem_read_WriteROMByteOffset64(const RR_ReplayReaderItem *item, uint8_t *byte, uint64_t *offset);
 
 #ifdef __cplusplus
 }

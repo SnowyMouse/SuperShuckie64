@@ -150,3 +150,21 @@ pub extern "C" fn RR_ReplayWriter_write_LoadSaveState(
 ) {
     writer.write_packet(&LoadSaveState { index });
 }
+
+macro_rules! make_write_byte_to_addr {
+    ($fn_name:tt, $packet_type:tt, $addr_width:tt, $addr_name:tt) => {
+        #[no_mangle]
+        pub extern "C" fn $fn_name(
+            writer: &mut ReplayWriter,
+            byte: u8,
+            $addr_name: $addr_width
+        ) {
+            writer.write_packet(&$packet_type { byte, $addr_name });
+        }
+    }
+}
+
+make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteRAMByteAddr32,   WriteRAMByteAddr32,   u32, addr);
+make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteRAMByteAddr64,   WriteRAMByteAddr64,   u64, addr);
+make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteROMByteOffset32, WriteROMByteOffset32, u32, offset);
+make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteROMByteOffset64, WriteROMByteOffset64, u64, offset);
