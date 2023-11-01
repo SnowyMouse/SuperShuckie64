@@ -3,6 +3,7 @@
 resolver = "2"
 
 members = [
+    "udp-command-handler",
     "replay-recorder",
     "replay-recorder-c"
 ]
