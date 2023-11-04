@@ -36,6 +36,11 @@ static std::vector<std::byte> rom_from_path(const std::optional<std::filesystem:
 }
 
 EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &default_rom) {
+    this->udp_command_server = UDPCommandHandler::try_new();
+    if(!this->udp_command_server.get()) {
+        std::fprintf(stderr, "Can't make UDP server!\n");
+    }
+
     // If the ROM failed to open, do not continue!
     if(!this->load_rom(default_rom)) {
         return;
@@ -94,7 +99,7 @@ bool EmulatorWindow::load_rom(const std::optional<std::filesystem::path> &path) 
 }
 
 void EmulatorWindow::reload_current_rom_data() {
-    this->gameboy = std::make_unique<GameboyContext>(GB_model_t::GB_MODEL_CGB_B, this->current_rom_data);
+    this->gameboy = std::make_unique<GameboyContext>(GB_model_t::GB_MODEL_CGB_B, this->current_rom_data, this->udp_command_server);
     this->currently_playing_back_recording = false;
 
     if(this->current_rom) {

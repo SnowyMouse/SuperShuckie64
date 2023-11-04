@@ -27,6 +27,7 @@ add_executable(supershuckie
     src/settings.cpp
     src/input_device.cpp
     src/speed_settings_window.cpp
+    src/sudo_gameboy.c
 )
 
 add_library(sameboy STATIC
@@ -52,7 +53,7 @@ add_library(sameboy STATIC
     "${SAMEBOY_DIR}/Core/workboy.c"
 )
 
-target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} -mconsole -lreplay_recorder_c)
+target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} -mconsole -lreplay_recorder_c -ludp_command_handler)
 target_include_directories(supershuckie
     PUBLIC ${Qt6Widgets_INCLUDE_DIRS}
     PUBLIC "${SAMEBOY_DIR}/Core"

@@ -1,6 +1,7 @@
 #ifndef SS64_EMU_WINDOW_HPP
 #define SS64_EMU_WINDOW_HPP
 
+#include "../rs/udp-command-handler/include/udp_command_handler.h"
 #include "gameboy_context.hpp"
 #include "input_device.hpp"
 
@@ -41,6 +42,7 @@ namespace SuperShuckie64 {
         std::string current_rom_name;
         std::string current_save_name;
         std::string displayed_save_name;
+        std::shared_ptr<UDPCommandHandler> udp_command_server;
 
         bool currently_playing_back_recording = false;
         bool suppress_game_input = false;
@@ -98,6 +100,7 @@ namespace SuperShuckie64 {
         void closeEvent(QCloseEvent *event) override;
         void switch_sram(const std::string &new_sram);
         void update_save_name_in_title_bar();
+
 
     private slots:
         void open_rom_dialog();

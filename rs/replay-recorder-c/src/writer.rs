@@ -164,7 +164,7 @@ macro_rules! make_write_byte_to_addr {
     }
 }
 
-make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteRAMByteAddr32,   WriteRAMByteAddr32,   u32, addr);
-make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteRAMByteAddr64,   WriteRAMByteAddr64,   u64, addr);
-make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteROMByteOffset32, WriteROMByteOffset32, u32, offset);
-make_write_byte_to_addr!(RR_ReplayReaderItem_write_WriteROMByteOffset64, WriteROMByteOffset64, u64, offset);
+make_write_byte_to_addr!(RR_ReplayWriter_write_WriteRAMByteAddr32,   WriteRAMByteAddr32,   u32, addr);
+make_write_byte_to_addr!(RR_ReplayWriter_write_WriteRAMByteAddr64,   WriteRAMByteAddr64,   u64, addr);
+make_write_byte_to_addr!(RR_ReplayWriter_write_WriteROMByteOffset32, WriteROMByteOffset32, u32, offset);
+make_write_byte_to_addr!(RR_ReplayWriter_write_WriteROMByteOffset64, WriteROMByteOffset64, u64, offset);

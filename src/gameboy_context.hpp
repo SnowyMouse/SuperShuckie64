@@ -13,6 +13,7 @@ extern "C" {
 #include <optional>
 
 #include "../rs/replay-recorder-c/include/replay_recorder.hpp"
+#include "../rs/udp-command-handler/include/udp_command_handler.h"
 
 namespace SuperShuckie64 {
     /**
@@ -22,7 +23,7 @@ namespace SuperShuckie64 {
      */
     class GameboyContext {
     public:
-        GameboyContext(GB_model_t model, const std::vector<std::byte> &rom);
+        GameboyContext(GB_model_t model, const std::vector<std::byte> &rom, std::shared_ptr<UDPCommandHandler> udp_command_server);
         ~GameboyContext();
 
         /**
@@ -96,6 +97,7 @@ namespace SuperShuckie64 {
     private:
         void start_thread() noexcept;
         void set_up_gameboy(GB_model_t model, const std::vector<std::byte> &rom) noexcept;
+        std::shared_ptr<UDPCommandHandler> udp_command_server;
 
         void acquire_context() noexcept;
         void unlock_context() noexcept;
@@ -147,7 +149,7 @@ namespace SuperShuckie64 {
 
         std::vector<std::byte> current_rom_data, current_boot_rom_data;
 
-
+        void handle_udp_commands() noexcept;
         void run_thread() noexcept;
     };
 }
