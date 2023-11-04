@@ -58,7 +58,14 @@ pub fn decode_hex(s: &str) -> Result<u64, ()> {
         return Err(());
     }
 
-    let bytes = (0..s.len())
+    let (start, adding) = if s.len() % 2 == 1 {
+        (1, (u8::from_str_radix(&s[0..1], 16).map_err(|_| ())? as u64) << ((s.len() - 1) * 4))
+    }
+    else {
+        (0, 0)
+    };
+
+    let bytes = (start..s.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&s[i..i + 2], 16));
 
@@ -71,7 +78,7 @@ pub fn decode_hex(s: &str) -> Result<u64, ()> {
         val = (val << 8) | (b as u64);
     }
 
-    Ok(val)
+    Ok(val | adding)
 }
 
 pub fn decode_num(s: &str) -> Result<u64, ()> {

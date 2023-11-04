@@ -124,7 +124,8 @@ void GameboyContext::copy_frame_buffer_blended(std::uint32_t *buffer) noexcept {
     this->present_framebuffer_lock.unlock();
 }
 
-extern "C" std::uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, std::uint16_t address, std::uint16_t bank_or_ffff);
+extern "C" void GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, std::uint16_t address, std::uint16_t bank_or_ffff, std::uint8_t *output, std::size_t output_size);
+extern "C" void GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, std::uint16_t address, std::uint16_t bank_or_ffff, const std::uint8_t *input, std::size_t input_size);
 
 void GameboyContext::handle_udp_commands() noexcept {
     // TODO: Move this refresh to a separate thread for better perf
@@ -138,6 +139,19 @@ void GameboyContext::handle_udp_commands() noexcept {
         SizedPtr param2;
         this->udp_command_server->get_request_data(type, param1, param2);
 
+        std::uint32_t requested_bank = 0xFFFF;
+        std::uint32_t requested_address = param1;
+        if(param1 >= 0xC000 && param1 <= 0xCFFF) {
+            requested_bank = 0;
+        }
+        if(param1 >= 0xD000 && param1 <= 0xDFFF) {
+            requested_bank = 1;
+        }
+        if(param1 >= 0x10000 && param1 <= 0x15FFF) {
+            requested_bank = (param1 - 0x10000) / 0x1000;
+            requested_address = (param1 % 0x1000) + 0xD000;
+        }
+
         switch(type) {
             case RA_RequestType_Invalid: {
                 return;
@@ -146,25 +160,22 @@ void GameboyContext::handle_udp_commands() noexcept {
                 if(param2.size > bytes.size()) {
                     break;
                 }
-                std::size_t zeroes = 0;
-                std::size_t nonzeroes = 0;
-                for(std::uint64_t i = 0; i < param2.size; i++) {
-                    bytes[i] = GB_safe_read_memory_except_its_actually_safe(this->gameboy.get(), param1 + i, 0xFFFF); // GB_safe_read_memory(this->gameboy.get(), param1 + i);
-                }
+                GB_safe_read_memory_except_its_actually_safe(this->gameboy.get(), requested_address, requested_bank, bytes.data(), param2.size);
                 this->udp_command_server->handle_read_request(bytes.data());
                 break;
             }
             case RA_RequestType_WriteCoreMemory: {
+                if(this->is_playing_back_inner()) {
+                    break;
+                }
+
+                GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), requested_address, requested_bank, param2.byteptr, param2.size);
                 for(std::uint64_t i = 0; i < param2.size; i++) {
-                    auto address = param1 + i;
-                    auto byte = param2.byteptr[i];
-                    if(!this->is_playing_back_inner()) {
-                        GB_write_memory(this->gameboy.get(), address, param2.byteptr[i]);
-                    }
                     if(this->is_recording_inner()) {
-                        this->replay_recorder->write_WriteRAMByteAddr32(byte, address);
+                        this->replay_recorder->write_WriteRAMByteAddr32(param2.byteptr[i], (requested_bank << 16) | static_cast<std::uint16_t>(requested_address + i));
                     }
                 }
+
                 break;
             }
         }
@@ -436,7 +447,7 @@ void GameboyContext::play_latest_packet() {
                 std::uint32_t address;
                 std::uint8_t byte;
                 latest.read_WriteRAMByteAddr32(byte, address);
-                GB_write_memory(this->gameboy.get(), address, byte);
+                GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), address & 0xFFFF, (address >> 16) & 0xFFFF, &byte, 1);
                 break;
             }
         }
