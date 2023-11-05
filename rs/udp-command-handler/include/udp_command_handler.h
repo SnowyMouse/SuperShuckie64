@@ -24,7 +24,6 @@ RA_UDPCommandHandler *RA_UDP_CMD_new(void);
 void RA_UDP_CMD_free(RA_UDPCommandHandler *);
 void RA_UDP_CMD_get_request_data(const RA_UDPCommandHandler *handler, uint8_t *type, uint64_t *addr, SizedPtr *param);
 void RA_UDP_CMD_pop_request(RA_UDPCommandHandler *handler);
-void RA_UDP_CMD_refresh(RA_UDPCommandHandler *handler);
 void RA_UDP_CMD_handle_read_request(const RA_UDPCommandHandler *handler, const uint8_t *bytes);
 
 #ifdef __cplusplus
@@ -49,10 +48,6 @@ public:
 
     void pop_request() noexcept {
         RA_UDP_CMD_pop_request(this->handler.get());
-    }
-
-    void refresh() noexcept {
-        RA_UDP_CMD_refresh(this->handler.get());
     }
 
     void handle_read_request(const std::uint8_t *bytes) const noexcept {

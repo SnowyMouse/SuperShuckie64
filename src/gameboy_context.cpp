@@ -128,9 +128,6 @@ extern "C" void GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, s
 extern "C" void GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, std::uint16_t address, std::uint16_t bank_or_ffff, const std::uint8_t *input, std::size_t input_size);
 
 void GameboyContext::handle_udp_commands() noexcept {
-    // TODO: Move this refresh to a separate thread for better perf
-    this->udp_command_server->refresh();
-
     std::vector<std::uint8_t> bytes(65536);
 
     while(true) {
@@ -194,7 +191,17 @@ void GameboyContext::on_vblank() noexcept {
     this->swap_framebuffers();
 
     if(this->is_recording_inner()) {
+        // must be done first before anything
         this->replay_recorder->next_frame();
+
+        std::uint32_t keyframe_interval = static_cast<std::uint32_t>(this->speed_multiplier * 5) / SPEED_MULTIPLIER_FACTOR; // every 5 seconds
+        if(keyframe_interval < 0) {
+            keyframe_interval = 1;
+        }
+
+        if((this->recording_frame_counter++ % keyframe_interval) == 0) {
+            this->insert_savestate_in_replay();
+        }
     }
 
     if(this->udp_command_server.get()) {
@@ -325,16 +332,26 @@ void GameboyContext::start_replay_recording(const char *rom_name) {
     );
 
     // automatically create and load a savestate here!
-    auto len = GB_get_save_state_size(this->gameboy.get());
-    std::vector<std::uint8_t> save_state;
-    save_state.resize(len);
-    GB_save_state_to_buffer(this->gameboy.get(), save_state.data());
-
-    this->replay_recorder->write_AddSaveState(0, save_state.data(), save_state.size());
-    this->replay_recorder->write_LoadSaveState(0);
+    this->keyframe_index = 0x80000000;
+    this->replay_recorder->write_LoadSaveState(this->insert_savestate_in_replay());
     this->replay_recorder->write_ChangeGameSpeed(this->speed_multiplier);
 
     this->unlock_context();
+}
+
+std::vector<std::uint8_t> &GameboyContext::create_savestate() {
+    std::size_t len = GB_get_save_state_size(this->gameboy.get());
+    this->savestate_buffer.resize(len);
+    GB_save_state_to_buffer(this->gameboy.get(), this->savestate_buffer.data());
+    return this->savestate_buffer;
+}
+
+std::uint32_t GameboyContext::insert_savestate_in_replay() {
+    auto &savestate = this->create_savestate();
+    auto keyframe_added = this->keyframe_index;
+    this->replay_recorder->write_AddSaveState(keyframe_added, savestate.data(), savestate.size());
+    this->keyframe_index = (this->keyframe_index + 1) | 0x80000000;
+    return keyframe_added;
 }
 
 std::vector<std::byte> GameboyContext::get_current_replay_recording_data() {
@@ -379,6 +396,7 @@ void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay)
 
     bool error;
     auto collection = replay_reader.collect(error);
+    std::size_t collection_count = collection->len();
     if(!collection || collection->len() == 0) {
         return;
     }
@@ -386,9 +404,24 @@ void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay)
     this->acquire_context();
     this->current_playback = std::move(collection);
     this->current_playback_offset = 0;
-    auto first = (*this->current_playback)[0];
+
+    auto &collection_moved = *this->current_playback;
+    auto first = collection_moved[0];
+
     this->current_playback_delay = first.get_delay();
     this->replay_states = {};
+
+    // preload all save states (for seaking)
+    for(std::size_t i = 0; i < collection_count; i++) {
+        auto item = collection_moved[i];
+        if(item.get_packet_type() == RR_PacketType::RR_AddSaveState) {
+            std::span<const std::byte> data;
+            std::uint32_t index;
+            item.read_AddSaveState(index, data);
+            this->replay_states[index] = std::vector<std::uint8_t>(reinterpret_cast<const std::uint8_t *>(data.data()), reinterpret_cast<const std::uint8_t *>(data.data() + data.size()));
+        }
+    }
+
     this->play_latest_packet();
     this->unlock_context();
 }

@@ -1,5 +1,7 @@
 use std::net::{UdpSocket, SocketAddr};
 use std::fmt::Write;
+use std::collections::LinkedList;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone, PartialEq)]
 pub enum Request {
@@ -50,7 +52,10 @@ impl QueuedRequest {
 /// Handles UDP commands, supporting RetroArch's commands.
 pub struct UDPCommandHandler {
     socket: UdpSocket,
-    queue: Vec<QueuedRequest>
+    recv_queue: Arc<Mutex<LinkedList<Box<QueuedRequest>>>>,
+    send_queue: Arc<Mutex<LinkedList<(SocketAddr, Vec<u8>)>>>,
+    closed: Arc<Mutex<bool>>,
+
 }
 
 pub fn decode_hex(s: &str) -> Result<u64, ()> {
@@ -99,10 +104,47 @@ impl UDPCommandHandler {
         let socket = UdpSocket::bind("127.0.0.1:55355")?;
         socket.set_read_timeout(Some(std::time::Duration::from_millis(1)))?;
         socket.set_write_timeout(Some(std::time::Duration::from_millis(1)))?;
-        Ok(Self { socket, queue: Vec::new() })
+
+        let recv_queue = Arc::new(Mutex::new(LinkedList::new()));
+        let send_queue = Arc::new(Mutex::new(LinkedList::new()));
+        let closed = Arc::new(Mutex::new(false));
+
+        UDPCommandHandler::start(socket.try_clone().unwrap(), recv_queue.clone(), send_queue.clone(), closed.clone());
+
+        Ok(Self { socket, recv_queue, send_queue, closed })
     }
 
-    pub fn refresh(&mut self) {
+    fn close(&mut self) {
+        *self.closed.lock().unwrap() = true;
+    }
+
+    fn start(socket: UdpSocket, recv_queue: Arc<Mutex<LinkedList<Box<QueuedRequest>>>>, send_queue: Arc<Mutex<LinkedList<(SocketAddr, Vec<u8>)>>>, closed: Arc<Mutex<bool>>) {
+        std::thread::spawn(move || {
+            let mut handler = UDPCommandHandler { socket, recv_queue, send_queue, closed };
+            loop {
+                if *handler.closed.lock().unwrap() {
+                    return;
+                }
+                handler.refresh();
+                handler.handle_send_queue();
+            }
+        });
+    }
+
+    fn handle_send_queue(&mut self) {
+        loop {
+            let mut l = self.send_queue.lock().unwrap();
+            if l.is_empty() {
+                return;
+            }
+            let first = l.pop_front().unwrap();
+            drop(l);
+
+            let _dontcare = self.socket.send_to(&first.1[..], first.0);
+        }
+    }
+
+    fn refresh(&mut self) {
         let mut buf = [0u8; 1024];
         'outer_loop:
         loop {
@@ -143,7 +185,10 @@ impl UDPCommandHandler {
                         bytes.push(byte);
                     }
 
-                    self.queue.push(QueuedRequest { from, request: Request::WriteCoreMemory(addr, bytes), socket: self.socket.try_clone().expect("can't clone socket") })
+                    self.recv_queue
+                        .lock()
+                        .unwrap()
+                        .push_back(Box::new(QueuedRequest { from, request: Request::WriteCoreMemory(addr, bytes), socket: self.socket.try_clone().expect("can't clone socket") }))
                 },
                 "READ_CORE_MEMORY" => {
                     if splitted.len() != 3 {
@@ -159,7 +204,11 @@ impl UDPCommandHandler {
                         Ok(n) => n,
                         Err(_) => continue
                     };
-                    self.queue.push(QueuedRequest { from, request: Request::ReadCoreMemory(addr, amount), socket: self.socket.try_clone().expect("can't clone socket") })
+
+                    self.recv_queue
+                        .lock()
+                        .unwrap()
+                        .push_back(Box::new(QueuedRequest { from, request: Request::ReadCoreMemory(addr, amount), socket: self.socket.try_clone().expect("can't clone socket") }))
                 },
                 n => {
                     eprintln!("Unrecognized command {n}");
@@ -169,12 +218,24 @@ impl UDPCommandHandler {
         }
     }
 
-    pub fn first(&self) -> Option<&QueuedRequest> {
-        self.queue.first()
+    pub fn first(&self) -> Option<*const QueuedRequest> {
+        match self.recv_queue.lock().unwrap().front() {
+            None => None,
+            Some(n) => {
+                let ptr: &QueuedRequest = &*n;
+                Some(ptr as *const QueuedRequest)
+            }
+        }
     }
 
     pub fn remove_first(&mut self) {
-        self.queue.remove(0);
+        self.recv_queue.lock().unwrap().pop_front();
+    }
+}
+
+impl Drop for UDPCommandHandler {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
@@ -208,8 +269,9 @@ pub extern "C" fn RA_UDP_CMD_get_request_data(handler: &UDPCommandHandler, rtype
             return;
         },
         Some(n) => {
-            *rtype = n.request.get_request_type();
-            match &n.request {
+            let req: &QueuedRequest = unsafe { &*n };
+            *rtype = req.request.get_request_type();
+            match &req.request {
                 Request::ReadCoreMemory(addr, length) => (addr, SizedPtr { size: *length, byteptr: std::ptr::null() }),
                 Request::WriteCoreMemory(addr, bytes) => (addr, SizedPtr { size: bytes.len() as u64, byteptr: bytes.as_ptr() })
             }
@@ -225,13 +287,8 @@ pub extern "C" fn RA_UDP_CMD_pop_request(handler: &mut UDPCommandHandler) {
 }
 
 #[no_mangle]
-pub extern "C" fn RA_UDP_CMD_refresh(handler: &mut UDPCommandHandler) {
-    handler.refresh()
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn RA_UDP_CMD_handle_read_request(handler: &UDPCommandHandler, bytes: *const u8) {
-    let request = handler.first().unwrap();
+    let request = &*handler.first().unwrap();
     let len = match request.request {
         Request::ReadCoreMemory(_addr, len) => len,
         _ => unreachable!()

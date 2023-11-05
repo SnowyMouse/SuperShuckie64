@@ -120,8 +120,10 @@ namespace SuperShuckie64 {
         std::size_t work_framebuffer = 2;
         std::size_t pixel_count = 0;
 
+        std::uint32_t keyframe_index = 0;
+
         // 8.8
-        std::uint16_t speed_multiplier = 1 << 8;
+        std::uint16_t speed_multiplier = SPEED_MULTIPLIER_FACTOR;
 
         void swap_framebuffers() noexcept;
         std::mutex present_framebuffer_lock; // mutex for framebuffers (besides the work framebuffer); used to present the current status of the framebuffers!
@@ -132,11 +134,16 @@ namespace SuperShuckie64 {
         bool is_recording_inner() const noexcept;
         bool is_playing_back_inner() const noexcept;
 
+        std::vector<std::uint8_t> savestate_buffer;
+        std::vector<std::uint8_t> &create_savestate();
+        std::uint32_t insert_savestate_in_replay();
+
         void handle_new_input(std::uint8_t new_input) noexcept;
         void handle_set_speed(std::uint16_t new_speed) noexcept;
 
         std::unique_ptr<GB_gameboy_t, void (*)(GB_gameboy_t *)> gameboy;
 
+        std::uint16_t recording_frame_counter = 0;
         std::unique_ptr<ReplayWriter> replay_recorder;
         std::optional<ReplayReaderItemCollection> current_playback;
         std::unordered_map<std::uint32_t, std::vector<std::uint8_t>> replay_states;
@@ -148,6 +155,7 @@ namespace SuperShuckie64 {
         std::atomic_bool stop_thread;
 
         std::vector<std::byte> current_rom_data, current_boot_rom_data;
+
 
         void handle_udp_commands() noexcept;
         void run_thread() noexcept;

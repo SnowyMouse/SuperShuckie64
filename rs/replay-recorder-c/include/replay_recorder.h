@@ -9,6 +9,8 @@
 extern "C" {
 #endif
 
+#define SPEED_MULTIPLIER_FACTOR (1 << 8)
+
 typedef struct RR_ReplayWriter RR_ReplayWriter;
 typedef struct RR_ReplayReader RR_ReplayReader;
 typedef struct RR_ReplayReaderItem RR_ReplayReaderItem;
