@@ -6,6 +6,8 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QListWidget>
+#include <QSpinBox>
+#include <QPushButton>
 #include "error.hpp"
 #include "emulator_window.hpp"
 #include "settings.hpp"
@@ -40,7 +42,26 @@ void EmulatorWindow::set_up_menu() {
     ADD_ACTION_AND_CONNECT("Close ROM", file_menu, close_rom());
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Quit", file_menu, close(), QKeyCombination(Qt::ControlModifier, Qt::Key_Q));
 
+    // Video settings
+    auto *scaling = settings_menu->addMenu("Video scaling");
+    auto scaling_setting = this->scaling_setting();
+    for(int i = 1; i <= 16; i++) {
+        char str[16];
+        std::snprintf(str, sizeof(str), "%dx", i);
+
+        auto *action = scaling->addAction(str);
+        action->setCheckable(true);
+        if(i == scaling_setting) {
+            action->setChecked(true);
+        }
+
+        action->setData(i);
+    }
+    connect(scaling, SIGNAL(triggered(QAction *)), this, SLOT(set_scaling_settings(QAction *)));
+
+    settings_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Speed settings...", settings_menu, open_speed_settings_dialog());
+
     //ADD_ACTION_AND_CONNECT("Remote command settings...", settings_menu, open_gamehook_settings_dialog());
     settings_menu->addSeparator();
     //ADD_ACTION_AND_CONNECT("Controls settings...", settings_menu, open_controls_settings_dialog());
@@ -331,6 +352,10 @@ void EmulatorWindow::start_replay_recording() {
         this->set_window_title_element("Can't start a replay recording - already recording!");
         return;
     }
+    if(this->gameboy->is_playing_back()) {
+        this->set_window_title_element("Can't start a replay recording - playback in process!");
+        return;
+    }
     this->gameboy->start_replay_recording(current_rom_name.c_str());
     this->set_window_title_element("Replay started!");
 }
@@ -404,6 +429,7 @@ void EmulatorWindow::load_replay() {
     this->current_save_name = RESERVED_REPLAY_PLAYBACK_SAVE_NAME;
     this->reload_current_rom_data();
     this->gameboy->start_replay_playback(*file);
+    this->gameboy->skip_to_frame(100000);
     this->currently_playing_back_recording = true;
 
     char fmt[600];
@@ -420,4 +446,16 @@ void EmulatorWindow::stop_replay() {
     this->currently_playing_back_recording = false;
     this->gameboy->stop_replay_playback();
     this->revert_window_title();
+}
+
+void EmulatorWindow::set_scaling_settings(QAction *trigger) {
+    auto *menu = dynamic_cast<QWidget *>(trigger->parent());
+    auto actions = menu->actions();
+
+    for(auto *i : menu->actions()) {
+        i->setChecked(i == trigger);
+    }
+
+    this->scaling_setting(trigger->data().toInt());
+    this->refresh_scale();
 }

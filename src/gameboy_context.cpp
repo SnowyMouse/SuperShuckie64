@@ -181,25 +181,15 @@ void GameboyContext::handle_udp_commands() noexcept {
 }
 
 void GameboyContext::on_vblank() noexcept {
-    static bool is_in_vblank = false;
-    if(is_in_vblank) {
-        std::printf("DOUBLE VBLANK OH NO!\n");
-        return;
-    }
-    is_in_vblank = true;
-
     this->swap_framebuffers();
 
+    this->current_frame_index++;
     if(this->is_recording_inner()) {
         // must be done first before anything
         this->replay_recorder->next_frame();
 
-        std::uint32_t keyframe_interval = static_cast<std::uint32_t>(this->speed_multiplier * 5) / SPEED_MULTIPLIER_FACTOR; // every 5 seconds
-        if(keyframe_interval < 0) {
-            keyframe_interval = 1;
-        }
-
-        if((this->recording_frame_counter++ % keyframe_interval) == 0) {
+        std::uint32_t keyframe_interval = 240;
+        if((this->current_frame_index % keyframe_interval) == 0) {
             this->insert_savestate_in_replay();
         }
     }
@@ -236,8 +226,6 @@ void GameboyContext::on_vblank() noexcept {
         this->current_playback_delay--;
         this->play_latest_packet();
     }
-
-    is_in_vblank = false;
 }
 
 
@@ -326,12 +314,17 @@ void GameboyContext::handle_set_speed(std::uint16_t new_speed) noexcept {
 
 void GameboyContext::start_replay_recording(const char *rom_name) {
     this->acquire_context();
+    if(this->is_playing_back_inner()) {
+        std::fprintf(stderr, "Can't record and playback at the same time!\n");
+        std::terminate();
+    }
 
     this->replay_recorder = std::make_unique<ReplayWriter>(
         "SuperShuckie64 ALPHA 0", rom_name, this->current_rom_data.data(), this->current_rom_data.size(), this->current_boot_rom_data.data(), this->current_boot_rom_data.size()
     );
 
     // automatically create and load a savestate here!
+    this->current_frame_index = 0;
     this->keyframe_index = 0x80000000;
     this->replay_recorder->write_LoadSaveState(this->insert_savestate_in_replay());
     this->replay_recorder->write_ChangeGameSpeed(this->speed_multiplier);
@@ -402,27 +395,94 @@ void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay)
     }
 
     this->acquire_context();
+    if(this->is_recording_inner()) {
+        std::fprintf(stderr, "Can't record and playback at the same time!\n");
+        std::terminate();
+    }
+
     this->current_playback = std::move(collection);
     this->current_playback_offset = 0;
+    this->current_frame_index = 0;
 
     auto &collection_moved = *this->current_playback;
     auto first = collection_moved[0];
 
     this->current_playback_delay = first.get_delay();
     this->replay_states = {};
+    this->replay_keyframes = {};
 
     // preload all save states (for seaking)
+    std::uint64_t frame_index = 0;
     for(std::size_t i = 0; i < collection_count; i++) {
         auto item = collection_moved[i];
+        frame_index += item.get_delay();
         if(item.get_packet_type() == RR_PacketType::RR_AddSaveState) {
             std::span<const std::byte> data;
             std::uint32_t index;
             item.read_AddSaveState(index, data);
             this->replay_states[index] = std::vector<std::uint8_t>(reinterpret_cast<const std::uint8_t *>(data.data()), reinterpret_cast<const std::uint8_t *>(data.data() + data.size()));
+            this->replay_keyframes.emplace_back(Keyframe {
+                .frame_index = frame_index,
+                .save_state_index = index,
+                .packet_index = i
+            });
         }
     }
+    this->total_playback_frames = frame_index;
 
     this->play_latest_packet();
+    this->unlock_context();
+}
+
+void GameboyContext::skip_to_frame(std::uint64_t frame) noexcept {
+    this->acquire_context();
+    if(!this->is_playing_back_inner()) {
+        this->unlock_context();
+        return;
+    }
+
+    // Can't skip; no keyframe before this one
+    if(this->replay_keyframes.empty() || this->replay_keyframes[0].frame_index > frame) {
+        return;
+    }
+
+    frame = std::min(frame, this->total_playback_frames);
+
+    // Find the closest frame before or equal to this one
+    auto keyframe_count = this->replay_keyframes.size();
+    std::size_t last_best_keyframe = 0;
+    for(std::size_t i = 0; i < keyframe_count; i++) {
+        auto &kf = this->replay_keyframes[i];
+        if(kf.frame_index > frame) {
+            break;
+        }
+        last_best_keyframe = i;
+    }
+
+    auto &keyframe_found = this->replay_keyframes[last_best_keyframe];
+
+    // First, do we need to actually do any skipping? (FIXME: SOMETHING IS BROKEN HERE)
+    if(keyframe_found.frame_index > this->current_frame_index || this->current_frame_index > frame) {
+        std::printf("Skipping to keyframe %d (save state index %08X)\n", keyframe_found.frame_index, keyframe_found.save_state_index);
+
+        this->current_frame_index = keyframe_found.frame_index;
+        this->current_playback_delay = 0;
+        this->current_playback_offset = keyframe_found.packet_index;
+
+        std::span<const std::byte> data;
+        std::uint32_t index;
+        (*this->current_playback)[this->current_playback_offset].read_AddSaveState(index, data);
+        GB_load_state_from_buffer(this->gameboy.get(), reinterpret_cast<const std::uint8_t *>(data.data()), data.size());
+
+        this->play_latest_packet();
+    }
+
+    GB_set_turbo_mode(this->gameboy.get(), true, true);
+    while(this->current_frame_index < frame) {
+        GB_run(this->gameboy.get());
+    }
+    GB_set_turbo_mode(this->gameboy.get(), false, true);
+
     this->unlock_context();
 }
 
@@ -430,6 +490,13 @@ void GameboyContext::stop_replay_playback() {
     this->acquire_context();
     this->current_playback = {};
     this->unlock_context();
+}
+
+std::uint64_t GameboyContext::get_current_frame_index() noexcept {
+    this->acquire_context();
+    auto result = this->current_frame_index;
+    this->unlock_context();
+    return result;
 }
 
 void GameboyContext::play_latest_packet() {
@@ -457,6 +524,8 @@ void GameboyContext::play_latest_packet() {
                 std::uint32_t index;
                 latest.read_AddSaveState(index, data);
                 this->replay_states[index] = std::vector<std::uint8_t>(reinterpret_cast<const std::uint8_t *>(data.data()), reinterpret_cast<const std::uint8_t *>(data.data() + data.size()));
+                std::printf("Adding save state %08X\n", index);
+                GB_load_state_from_buffer(this->gameboy.get(), reinterpret_cast<const std::uint8_t *>(data.data()), data.size()); // should be necessary but something is broken with skipping atm
                 break;
             }
             case RR_PacketType::RR_LoadSaveState: {

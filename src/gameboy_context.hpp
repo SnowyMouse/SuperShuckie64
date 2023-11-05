@@ -83,6 +83,16 @@ namespace SuperShuckie64 {
          */
         void set_speed(std::uint16_t new_speed) noexcept;
 
+        /**
+         * Skip to this frame
+         */
+        void skip_to_frame(std::uint64_t frame) noexcept;
+
+        /**
+         * Get the current frame index
+         */
+        std::uint64_t get_current_frame_index() noexcept;
+
         bool is_recording() noexcept;
         void start_replay_recording(const char *rom_name);
         std::vector<std::byte> get_current_replay_recording_data();
@@ -143,12 +153,22 @@ namespace SuperShuckie64 {
 
         std::unique_ptr<GB_gameboy_t, void (*)(GB_gameboy_t *)> gameboy;
 
-        std::uint16_t recording_frame_counter = 0;
+        struct Keyframe {
+            std::uint64_t frame_index;
+            std::uint32_t save_state_index;
+            std::size_t packet_index;
+        };
+
         std::unique_ptr<ReplayWriter> replay_recorder;
         std::optional<ReplayReaderItemCollection> current_playback;
+        std::vector<Keyframe> replay_keyframes;
         std::unordered_map<std::uint32_t, std::vector<std::uint8_t>> replay_states;
+
         std::size_t current_playback_offset;
         std::size_t current_playback_delay;
+        std::uint64_t current_frame_index = 0;
+        std::uint64_t total_playback_frames;
+
         void play_latest_packet();
 
         std::atomic_bool thread_running;

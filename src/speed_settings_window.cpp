@@ -32,6 +32,8 @@ SpeedSettingsWindow::SpeedSettingsWindow(double base, double turbo, double slow)
     auto *save = new QPushButton("OK", this);
     connect(save, SIGNAL(clicked()), this, SLOT(accept()));
     layout->addWidget(save, 3, 0, 1, 2);
+
+    this->setFixedSize(this->sizeHint());
 }
 
 double SpeedSettingsWindow::get_base_speed() const noexcept {

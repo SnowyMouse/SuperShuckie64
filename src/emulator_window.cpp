@@ -55,7 +55,7 @@ EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &defau
     this->pixel_buffer_view->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
     this->pixel_buffer_view->setSizePolicy(QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Fixed);
 
-    this->set_scale(6);
+    this->refresh_scale();
     this->ticker.setInterval(1);
     this->ticker.callOnTimeout(this, &EmulatorWindow::tick);
     this->ticker.start();
@@ -131,7 +131,8 @@ void EmulatorWindow::update_gameboy_speed() {
     this->gameboy->set_speed(total);
 }
 
-void EmulatorWindow::set_scale(unsigned scale) {
+void EmulatorWindow::refresh_scale() {
+    auto scale = this->scaling_setting();
     scale = std::max(scale, static_cast<decltype(scale)>(1));
 
     this->setMinimumSize(0,0);
@@ -384,4 +385,13 @@ void EmulatorWindow::load_settings_for_controller(ControllerInputDevice &device)
 void EmulatorWindow::closeEvent(QCloseEvent *event) {
     this->save_sram();
     QMainWindow::closeEvent(event);
+}
+
+int EmulatorWindow::scaling_setting(int new_setting) {
+    auto setting = get_settings();
+    if(new_setting) {
+        setting.setValue("window/scale", new_setting);
+    }
+
+    return setting.value("window/scale", 8).toInt();
 }

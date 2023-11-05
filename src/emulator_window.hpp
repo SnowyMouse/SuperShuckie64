@@ -52,7 +52,7 @@ namespace SuperShuckie64 {
         double slow_speed = 0.25;
         void update_gameboy_speed();
 
-        void set_scale(unsigned scale);
+        void refresh_scale();
         void tick();
         QTimer ticker;
 
@@ -81,6 +81,8 @@ namespace SuperShuckie64 {
 
         std::filesystem::path get_rom_settings_path() const;
 
+        int scaling_setting(int new_setting = 0);
+
         // WARNING: Does not save SRAM
         void reload_current_rom_data();
 
@@ -103,6 +105,7 @@ namespace SuperShuckie64 {
 
 
     private slots:
+        void set_scaling_settings(QAction *);
         void open_rom_dialog();
         void open_speed_settings_dialog();
         void reload_all_controllers();
