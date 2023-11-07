@@ -102,8 +102,6 @@ namespace SuperShuckie64 {
         void start_replay_playback(const std::vector<std::byte> &replay);
         void stop_replay_playback();
 
-
-
     private:
         void start_thread() noexcept;
         void set_up_gameboy(GB_model_t model, const std::vector<std::byte> &rom) noexcept;
@@ -118,6 +116,7 @@ namespace SuperShuckie64 {
         std::atomic_uint8_t rapid_fire_input = 0;
         std::atomic_bool paused = true;
 
+        bool vblank_performed = false;
         std::uint8_t current_input = 0;
 
         std::uint8_t rapid_fire_duty_cycle = 3;
@@ -129,6 +128,7 @@ namespace SuperShuckie64 {
         std::size_t current_framebuffer = 1;
         std::size_t work_framebuffer = 2;
         std::size_t pixel_count = 0;
+        std::uint32_t frames_since_last_save_state;
 
         std::uint32_t keyframe_index = 0;
 
@@ -155,18 +155,20 @@ namespace SuperShuckie64 {
 
         struct Keyframe {
             std::uint64_t frame_index;
-            std::uint32_t save_state_index;
+            std::uint8_t current_input;
+            std::uint16_t current_speed;
             std::size_t packet_index;
         };
 
         std::unique_ptr<ReplayWriter> replay_recorder;
         std::optional<ReplayReaderItemCollection> current_playback;
         std::vector<Keyframe> replay_keyframes;
-        std::unordered_map<std::uint32_t, std::vector<std::uint8_t>> replay_states;
+        std::unordered_map<std::uint32_t, std::span<const std::byte>> replay_states;
 
         std::size_t current_playback_offset;
         std::size_t current_playback_delay;
         std::uint64_t current_frame_index = 0;
+        std::optional<std::uint64_t> target_frame_turbo;
         std::uint64_t total_playback_frames;
 
         void play_latest_packet();

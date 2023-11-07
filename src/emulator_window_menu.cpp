@@ -119,7 +119,8 @@ void EmulatorWindow::save_sram() {
     }
 
     if(this->current_save_name == RESERVED_REPLAY_PLAYBACK_SAVE_NAME) {
-        if(this->gameboy->is_playing_back()) {
+        this->set_window_title_element("Nah");
+        if(this->gameboy->is_playing_back() || true) {
             return; // no need to save if playing back
         }
 
@@ -429,7 +430,6 @@ void EmulatorWindow::load_replay() {
     this->current_save_name = RESERVED_REPLAY_PLAYBACK_SAVE_NAME;
     this->reload_current_rom_data();
     this->gameboy->start_replay_playback(*file);
-    this->gameboy->skip_to_frame(100000);
     this->currently_playing_back_recording = true;
 
     char fmt[600];
