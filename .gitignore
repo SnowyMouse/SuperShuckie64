@@ -3,3 +3,4 @@ target/
 *.gbc
 *.sav
 Cargo.lock
+*:Zone.Identifier
