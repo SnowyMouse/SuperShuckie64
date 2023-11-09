@@ -17,7 +17,6 @@
 #include <QPixmap>
 #include <SDL2/SDL.h>
 
-class QGraphicsView;
 class QGraphicsScene;
 class QGraphicsPixmapItem;
 class QMenu;
@@ -27,6 +26,8 @@ struct SDL_ControllerDeviceEvent;
 #define RESERVED_REPLAY_PLAYBACK_SAVE_NAME "replay-playback"
 
 namespace SuperShuckie64 {
+    class PixelBufferView;
+
     class EmulatorWindow : public QMainWindow {
         Q_OBJECT
     public:
@@ -35,7 +36,9 @@ namespace SuperShuckie64 {
         // Return true if EmulatorWindow's constructor succeeded.
         bool is_valid() { return this->valid; }
 
-        bool load_rom(const std::optional<std::filesystem::path> &path);
+        // Load the ROM and start it, returning `true` if successful and `false` on failure.
+        bool load_and_start_rom(const std::optional<std::filesystem::path> &path);
+
     private:
         std::vector<std::byte> current_rom_data;
         std::optional<std::filesystem::path> current_rom;
@@ -66,7 +69,7 @@ namespace SuperShuckie64 {
         QPixmap pixel_buffer_pixmap;
         QGraphicsPixmapItem *pixel_buffer_pixmap_item = nullptr;
         std::vector<std::uint32_t> pixel_buffer;
-        QGraphicsView *pixel_buffer_view;
+        PixelBufferView *pixel_buffer_view;
         QGraphicsScene *pixel_buffer_scene = nullptr;
 
         std::unordered_map<SDL_JoystickID, std::shared_ptr<ControllerInputDevice>> input_devices;
@@ -88,6 +91,7 @@ namespace SuperShuckie64 {
 
         void set_window_title_element(const char *what) noexcept;
         void reload_speed_settings() noexcept;
+        bool load_rom(const std::optional<std::filesystem::path> &path);
         void handle_loaded_rom() noexcept;
         void write_settings_for_controller(const ControllerInputDevice &device);
         void load_settings_for_controller(ControllerInputDevice &device);

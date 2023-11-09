@@ -26,6 +26,7 @@ add_executable(supershuckie
     src/gameboy_context.cpp
     src/settings.cpp
     src/input_device.cpp
+    src/pixel_buffer_view.cpp
     src/speed_settings_window.cpp
     src/sudo_gameboy.c
 )

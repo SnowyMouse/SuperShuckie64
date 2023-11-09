@@ -5,6 +5,7 @@
 #include <SDL2/SDL.h>
 #include <QMenu>
 #include <algorithm>
+#include <QKeyEvent>
 
 #include "file_rw.hpp"
 #include "error.hpp"
@@ -16,6 +17,7 @@
 
 #include "emulator_window.hpp"
 #include "../defaultrom/defaultrom.hpp"
+#include "pixel_buffer_view.hpp"
 
 using namespace SuperShuckie64;
 
@@ -48,7 +50,7 @@ EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &defau
 
     this->reload_speed_settings();
     this->set_up_menu();
-    this->pixel_buffer_view = new QGraphicsView(this);
+    this->pixel_buffer_view = new PixelBufferView(this, *this);
     this->setCentralWidget(this->pixel_buffer_view);
     this->pixel_buffer_view->setFrameStyle(0);
     this->pixel_buffer_view->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
@@ -68,6 +70,14 @@ EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &defau
 
     this->valid = true;
     this->handle_loaded_rom();
+}
+
+bool EmulatorWindow::load_and_start_rom(const std::optional<std::filesystem::path> &path) {
+    auto loaded = this->load_rom(path);
+    if(loaded) {
+        this->handle_loaded_rom();
+    }
+    return loaded;
 }
 
 bool EmulatorWindow::load_rom(const std::optional<std::filesystem::path> &path) {
