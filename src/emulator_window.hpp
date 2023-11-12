@@ -27,9 +27,13 @@ struct SDL_ControllerDeviceEvent;
 
 namespace SuperShuckie64 {
     class PixelBufferView;
+    class ControlsSettingsWindow;
 
     class EmulatorWindow : public QMainWindow {
         Q_OBJECT
+
+        friend ControlsSettingsWindow;
+
     public:
         EmulatorWindow(const std::optional<std::filesystem::path> &default_rom);
 
@@ -71,6 +75,9 @@ namespace SuperShuckie64 {
         std::vector<std::uint32_t> pixel_buffer;
         PixelBufferView *pixel_buffer_view;
         QGraphicsScene *pixel_buffer_scene = nullptr;
+
+        // Set when we're configuring input
+        bool block_input = false;
 
         std::unordered_map<SDL_JoystickID, std::shared_ptr<ControllerInputDevice>> input_devices;
 
@@ -122,6 +129,7 @@ namespace SuperShuckie64 {
         void stop_replay_recording();
         void load_replay();
         void stop_replay();
+        void open_controls_settings_dialog();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

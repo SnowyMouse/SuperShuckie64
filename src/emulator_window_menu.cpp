@@ -1,4 +1,3 @@
-#include <QGridLayout>
 #include <QMenuBar>
 #include <QFileDialog>
 #include <QKeyCombination>
@@ -8,7 +7,9 @@
 #include <QListWidget>
 #include <QSpinBox>
 #include <QPushButton>
+#include <QVBoxLayout>
 #include "error.hpp"
+#include "controls_settings_window.hpp"
 #include "emulator_window.hpp"
 #include "settings.hpp"
 #include "speed_settings_window.hpp"
@@ -64,7 +65,7 @@ void EmulatorWindow::set_up_menu() {
 
     //ADD_ACTION_AND_CONNECT("Remote command settings...", settings_menu, open_gamehook_settings_dialog());
     settings_menu->addSeparator();
-    //ADD_ACTION_AND_CONNECT("Controls settings...", settings_menu, open_controls_settings_dialog());
+    ADD_ACTION_AND_CONNECT("Controls settings...", settings_menu, open_controls_settings_dialog());
     ADD_ACTION_AND_CONNECT("Reload all controllers", settings_menu, reload_all_controllers());
 
 
@@ -458,4 +459,39 @@ void EmulatorWindow::set_scaling_settings(QAction *trigger) {
 
     this->scaling_setting(trigger->data().toInt());
     this->refresh_scale();
+}
+
+void EmulatorWindow::open_controls_settings_dialog() {
+    this->input_state = {};
+    this->update_input_state_on_gameboy();
+
+    ControlsSettingsWindow window(this, *this);
+
+    window.connect(this, SIGNAL(on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &)), &window, SLOT(on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &)));
+    window.connect(this, SIGNAL(on_device_input(SDL_ControllerAxisEvent &, ControllerInputDevice &)), &window, SLOT(on_device_input(SDL_ControllerAxisEvent &, ControllerInputDevice &)));
+
+    this->block_input = true;
+    auto result = window.exec();
+    this->block_input = false;
+
+    if(result != QDialog::Accepted) {
+        return;
+    }
+
+    for(auto &i : window.all_settings) {
+        for(auto &c : this->input_devices) {
+            auto &device = *c.second;
+            if(device.get_name_settings() != i.first) {
+                continue;
+            }
+
+            device.settings_button = i.second.all_settings[0];
+            device.settings_analog_positive = i.second.all_settings[1];
+            device.settings_analog_negative = i.second.all_settings[2];
+
+            this->write_settings_for_controller(device);
+
+            break;
+        }
+    }
 }

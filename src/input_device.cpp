@@ -151,7 +151,7 @@ void ControllerInputDevice::register_input(InputState &response, const SDL_Contr
     apply_axis_logic(response, input_negative, negative_value);
 }
 
-const char *settings_value_to_name(SettingsValues value) {
+const char *SuperShuckie64::settings_value_to_name(SettingsValues value) noexcept {
     switch(value) {
         case SettingsValues_A:
             return "A";

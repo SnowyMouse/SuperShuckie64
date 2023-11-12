@@ -301,6 +301,10 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
 }
 
 void EmulatorWindow::update_input_state_on_gameboy() noexcept {
+    if(this->block_input) {
+        return;
+    }
+
     this->gameboy->set_input(this->input_state.input | this->input_state.input_toggle);
     this->gameboy->set_rapid_fire_input(this->input_state.input_rapid_fire);
     this->update_gameboy_speed();

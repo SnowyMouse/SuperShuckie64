@@ -29,6 +29,7 @@ add_executable(supershuckie
     src/pixel_buffer_view.cpp
     src/speed_settings_window.cpp
     src/sudo_gameboy.c
+    src/controls_settings_window.cpp
 )
 
 add_library(sameboy STATIC

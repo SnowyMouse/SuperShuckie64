@@ -17,6 +17,23 @@ namespace SuperShuckie64 {
         float slow = 0.0;
     };
 
+    // Corresponds to an input type
+    enum InputType {
+        Controller
+    };
+
+    enum ButtonType {
+        Normal = 0,
+        Toggle = 1,
+        RapidFire = 2,
+    };
+
+    enum ControlType {
+        Button = 0,
+        AnalogPositive = 1,
+        AnalogNegative = 2
+    };
+
     // Corresponds to a control for the emulator
     enum SettingsValues : std::uint8_t {
         SettingsValues_None = 0,
@@ -37,7 +54,7 @@ namespace SuperShuckie64 {
     };
 
     // Get the name of the setting, returning null if invalid
-    const char *settings_value_to_name(SettingsValues value);
+    const char *settings_value_to_name(SettingsValues value) noexcept;
 
     // Return true if the settings value in particular has
     bool settings_value_has_turbo_and_toggle(SettingsValues value);
