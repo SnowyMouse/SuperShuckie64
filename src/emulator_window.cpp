@@ -40,7 +40,7 @@ static std::vector<std::byte> rom_from_path(const std::optional<std::filesystem:
 EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &default_rom) {
     this->udp_command_server = UDPCommandHandler::try_new();
     if(!this->udp_command_server.get()) {
-        std::fprintf(stderr, "Can't make UDP server!\n");
+        DISPLAY_ERROR_DIALOG("Failed to start UDP server", "Can't start a UDP commands server. Another application (RetroArch, another SuperShuckie instance, etc.) might be using port 55355 at the moment.\n\nRestart the emulator and try again if you need this!");
     }
 
     // If the ROM failed to open, do not continue!
