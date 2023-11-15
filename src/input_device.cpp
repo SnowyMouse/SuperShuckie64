@@ -31,6 +31,7 @@ void ControllerInputDevice::restore_default_settings() noexcept {
     this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT] = SettingsValues::SettingsValues_Right;
     this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP] = SettingsValues::SettingsValues_Up;
     this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN] = SettingsValues::SettingsValues_Down;
+    this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_GUIDE] = SettingsValues::SettingsValues_ResetConsole;
 
     this->settings_button.input_rapid_fire[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER] = SettingsValues::SettingsValues_B;
     this->settings_button.input_rapid_fire[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER] = SettingsValues::SettingsValues_A;

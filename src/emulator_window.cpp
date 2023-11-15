@@ -292,7 +292,7 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
         return;
     }
 
-    if(!this->suppress_game_input) {
+    if(!this->suppress_game_input && !this->currently_playing_back_recording) {
         what->second->register_input(this->input_state, event, on);
         this->update_input_state_on_gameboy();
     }
@@ -318,7 +318,7 @@ void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
         return;
     }
 
-    if(!this->suppress_game_input) {
+    if(!this->suppress_game_input && !this->currently_playing_back_recording) {
         what->second->register_input(this->input_state, event);
         this->update_input_state_on_gameboy();
     }
@@ -408,5 +408,5 @@ int EmulatorWindow::scaling_setting(int new_setting) {
         setting.setValue("window/scale", new_setting);
     }
 
-    return setting.value("window/scale", 8).toInt();
+    return setting.value("window/scale", 6).toInt();
 }
