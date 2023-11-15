@@ -168,3 +168,10 @@ make_write_byte_to_addr!(RR_ReplayWriter_write_WriteRAMByteAddr32,   WriteRAMByt
 make_write_byte_to_addr!(RR_ReplayWriter_write_WriteRAMByteAddr64,   WriteRAMByteAddr64,   u64, addr);
 make_write_byte_to_addr!(RR_ReplayWriter_write_WriteROMByteOffset32, WriteROMByteOffset32, u32, offset);
 make_write_byte_to_addr!(RR_ReplayWriter_write_WriteROMByteOffset64, WriteROMByteOffset64, u64, offset);
+
+#[no_mangle]
+pub unsafe extern "C" fn RR_ReplayWriter_write_ResetSystem(
+    writer: &mut ReplayWriter
+) {
+    writer.write_packet(&ResetSystem { });
+}

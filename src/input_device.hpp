@@ -13,6 +13,8 @@ namespace SuperShuckie64 {
         std::uint8_t input_toggle = 0;
         std::uint8_t input_rapid_fire = 0;
 
+        bool reset_console = false;
+
         float turbo = 0.0;
         float slow = 0.0;
     };
@@ -51,6 +53,8 @@ namespace SuperShuckie64 {
 
         SettingsValues_Turbo,
         SettingsValues_Slow,
+
+        SettingsValues_ResetConsole
     };
 
     // Get the name of the setting, returning null if invalid

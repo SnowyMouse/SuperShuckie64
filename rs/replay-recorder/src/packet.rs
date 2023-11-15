@@ -78,6 +78,7 @@ pub enum PacketType {
     WriteRAMByteAddr64 = 15,
     WriteROMByteOffset32 = 16,
     WriteROMByteOffset64 = 17,
+    ResetSystem = 18,
     NoOp = 255, // will generally be accompanied by another 0xFF byte, so it might be compression bait
 }
 
@@ -100,7 +101,10 @@ impl TryFrom<u8> for PacketType {
              12 => Ok(PacketType::AddSaveState),
              13 => Ok(PacketType::LoadSaveState),
              14 => Ok(PacketType::WriteRAMByteAddr32),
-             15 => Ok(PacketType::WriteROMByteOffset32),
+             15 => Ok(PacketType::WriteRAMByteAddr64),
+             16 => Ok(PacketType::WriteROMByteOffset32),
+             17 => Ok(PacketType::WriteROMByteOffset64),
+             18 => Ok(PacketType::ResetSystem),
             255 => Ok(PacketType::NoOp),
             _ => Err(())
         }
@@ -380,3 +384,17 @@ make_write_byte_to_addr!(WriteRAMByteAddr32, u32, addr, "Write a byte into RAM a
 make_write_byte_to_addr!(WriteRAMByteAddr64, u64, addr, "Write a byte into RAM at the address.\n\nThe address is device-specific. For example, a 32-bit address space may use the upper 32 bits to define a bank or segment, while the lower 32-bits would be the actual address.\n\nThis can manipulate ROM data, too, such as ROMs that accept writes and do things like bank switching.");
 make_write_byte_to_addr!(WriteROMByteOffset32, u32, offset, "Write a byte into ROM at the offset.\n\nThis is for overwriting data on the ROM itself at a given offset rather than the memory.");
 make_write_byte_to_addr!(WriteROMByteOffset64, u64, offset, "Write a byte into ROM at the offset.\n\nThis is for overwriting data on the ROM itself at a given offset rather than the memory.");
+
+/// Reset the console.
+#[derive(Copy, Clone, PartialEq, Default, Debug)]
+pub struct ResetSystem {}
+impl Packet for ResetSystem {
+    fn get_packet_type() -> PacketType { PacketType::ResetSystem }
+    fn write<W: Write>(&self, _: &mut W) -> LoadResult<()> {
+        Ok(())
+    }
+    fn read<R: Read>(_: &mut R) -> LoadResult<Self> {
+        Ok(Self {})
+    }
+    fn as_any(&self) -> &dyn Any { self }
+}

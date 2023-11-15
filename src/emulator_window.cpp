@@ -292,7 +292,7 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
         return;
     }
 
-    if(!suppress_game_input) {
+    if(!this->suppress_game_input) {
         what->second->register_input(this->input_state, event, on);
         this->update_input_state_on_gameboy();
     }
@@ -301,9 +301,10 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
 }
 
 void EmulatorWindow::update_input_state_on_gameboy() noexcept {
-    if(this->block_input) {
-        return;
+    if(this->input_state.reset_console) {
+        this->perform_reset();
     }
+    this->is_resetting = this->input_state.reset_console;
 
     this->gameboy->set_input(this->input_state.input | this->input_state.input_toggle);
     this->gameboy->set_rapid_fire_input(this->input_state.input_rapid_fire);
@@ -317,7 +318,7 @@ void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
         return;
     }
 
-    if(!suppress_game_input) {
+    if(!this->suppress_game_input) {
         what->second->register_input(this->input_state, event);
         this->update_input_state_on_gameboy();
     }

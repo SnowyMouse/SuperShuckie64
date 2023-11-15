@@ -77,6 +77,8 @@ void EmulatorWindow::set_up_menu() {
     this->gameplay_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Load replay...", this->gameplay_menu, load_replay());
     ADD_ACTION_AND_CONNECT("Stop replay", this->gameplay_menu, stop_replay());
+    this->gameplay_menu->addSeparator();
+    ADD_ACTION_AND_CONNECT("Reset console", this->gameplay_menu, perform_reset());
 }
 
 
@@ -470,9 +472,9 @@ void EmulatorWindow::open_controls_settings_dialog() {
     window.connect(this, SIGNAL(on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &)), &window, SLOT(on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &)));
     window.connect(this, SIGNAL(on_device_input(SDL_ControllerAxisEvent &, ControllerInputDevice &)), &window, SLOT(on_device_input(SDL_ControllerAxisEvent &, ControllerInputDevice &)));
 
-    this->block_input = true;
+    this->suppress_game_input = true;
     auto result = window.exec();
-    this->block_input = false;
+    this->suppress_game_input = false;
 
     if(result != QDialog::Accepted) {
         return;
@@ -494,4 +496,11 @@ void EmulatorWindow::open_controls_settings_dialog() {
             break;
         }
     }
+}
+
+void EmulatorWindow::perform_reset() {
+    if(this->is_resetting) {
+        return;
+    }
+    this->gameboy->reset();
 }

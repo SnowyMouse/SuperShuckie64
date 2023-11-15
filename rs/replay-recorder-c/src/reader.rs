@@ -258,3 +258,11 @@ make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteRAMByteAddr32,   WriteRAM
 make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteRAMByteAddr64,   WriteRAMByteAddr64,   u64, addr);
 make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteROMByteOffset32, WriteROMByteOffset32, u32, offset);
 make_write_byte_to_addr!(RR_ReplayReaderItem_read_WriteROMByteOffset64, WriteROMByteOffset64, u64, offset);
+
+
+#[no_mangle]
+pub extern "C" fn RR_ReplayReaderItem_read_ResetSystem(
+    item: &ReplayReaderItem,
+) {
+    let _ = get_packet_or_bail!(ResetSystem, item);
+}

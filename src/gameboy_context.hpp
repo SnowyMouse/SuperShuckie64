@@ -93,6 +93,17 @@ namespace SuperShuckie64 {
          */
         std::uint64_t get_current_frame_index() noexcept;
 
+        /**
+         * Do a hard reset of the console
+         */
+        void reset() noexcept {
+            if(this->is_playing_back_inner()) {
+                return;
+            }
+            std::printf("Reset called externally?\n");
+            this->reset_queued = true;
+        }
+
         bool is_recording() noexcept;
         void start_replay_recording(const char *rom_name);
         std::vector<std::byte> get_current_replay_recording_data();
@@ -115,6 +126,7 @@ namespace SuperShuckie64 {
         std::atomic_uint8_t pending_input = 0;
         std::atomic_uint8_t rapid_fire_input = 0;
         std::atomic_bool paused = true;
+        std::atomic_bool reset_queued = false;
 
         bool vblank_performed = false;
         std::uint8_t current_input = 0;
@@ -143,6 +155,8 @@ namespace SuperShuckie64 {
 
         bool is_recording_inner() const noexcept;
         bool is_playing_back_inner() const noexcept;
+
+        void handle_reset() noexcept;
 
         std::vector<std::uint8_t> savestate_buffer;
         std::vector<std::uint8_t> &create_savestate();

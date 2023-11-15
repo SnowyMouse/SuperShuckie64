@@ -81,6 +81,7 @@ impl<R: Read> Iterator for ReplayReader<R> {
             PacketType::WriteRAMByteAddr64 => read_packet_to_box::<WriteRAMByteAddr64, R>(&mut self.stream),
             PacketType::WriteROMByteOffset32 => read_packet_to_box::<WriteROMByteOffset32, R>(&mut self.stream),
             PacketType::WriteROMByteOffset64 => read_packet_to_box::<WriteROMByteOffset64, R>(&mut self.stream),
+            PacketType::ResetSystem => read_packet_to_box::<ResetSystem, R>(&mut self.stream)
         };
 
         Some(packet.map(|packet| ReplayReaderItem { delay: delay[0], packet_type, packet} ))

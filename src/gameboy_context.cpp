@@ -197,6 +197,14 @@ void GameboyContext::on_vblank() noexcept {
         this->handle_udp_commands();
     }
 
+    if(this->reset_queued) {
+        this->reset_queued = false;
+        if(this->is_playing_back_inner()) {
+            this->stop_replay_playback();
+        }
+        this->handle_reset();
+    }
+
     if(!this->is_playing_back_inner()) {
         std::uint8_t new_input_value = this->pending_input;
         std::uint8_t rapid_fire_input_value = this->rapid_fire_input;
@@ -244,7 +252,6 @@ void GameboyContext::on_vblank(GB_gameboy_t *gb, GB_vblank_type_t type) noexcept
 
     if(i % 100 == 0) {
         auto time_since = i / (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() / 1000.0);
-        std::printf("%.04f\n", time_since);
         start = std::chrono::steady_clock::now();
         i = 0;
     }
@@ -533,6 +540,13 @@ std::uint64_t GameboyContext::get_current_frame_index() noexcept {
     return result;
 }
 
+void GameboyContext::handle_reset() noexcept {
+    if(this->is_recording_inner()) {
+        this->replay_recorder->write_ResetSystem();
+    }
+    GB_reset(this->gameboy.get());
+}
+
 void GameboyContext::play_latest_packet() {
     if(!this->is_playing_back_inner() || this->current_playback_delay > 0) {
         return;
@@ -582,6 +596,10 @@ void GameboyContext::play_latest_packet() {
                 std::uint8_t byte;
                 latest.read_WriteRAMByteAddr32(byte, address);
                 GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), address & 0xFFFF, (address >> 16) & 0xFFFF, &byte, 1);
+                break;
+            }
+            case RR_PacketType::RR_ResetSystem: {
+                this->handle_reset();
                 break;
             }
         }

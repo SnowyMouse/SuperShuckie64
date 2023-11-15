@@ -39,6 +39,7 @@ typedef enum RR_PacketType {
     RR_WriteRAMByteAddr64 = 15,
     RR_WriteROMByteOffset32 = 16,
     RR_WriteROMByteOffset64 = 17,
+    RR_ResetSystem = 18,
     RR_NoOp = 255,
 } RR_PacketType;
 
@@ -64,6 +65,7 @@ void RR_ReplayWriter_write_WriteRAMByteAddr32(RR_ReplayWriter *writer, uint8_t b
 void RR_ReplayWriter_write_WriteRAMByteAddr64(RR_ReplayWriter *writer, uint8_t byte, uint64_t addr);
 void RR_ReplayWriter_write_WriteROMByteOffset32(RR_ReplayWriter *writer, uint8_t byte, uint32_t offset);
 void RR_ReplayWriter_write_WriteROMByteOffset64(RR_ReplayWriter *writer, uint8_t byte, uint64_t offset);
+void RR_ReplayWriter_write_ResetSystem(RR_ReplayWriter *writer);
 
 RR_ReplayReader *RR_ReplayReader_new(const void *stream_data, size_t stream_data_len);
 void RR_ReplayReader_free(RR_ReplayReader *reader);
@@ -94,6 +96,7 @@ void RR_ReplayReaderItem_read_WriteRAMByteAddr32(const RR_ReplayReaderItem *item
 void RR_ReplayReaderItem_read_WriteRAMByteAddr64(const RR_ReplayReaderItem *item, uint8_t *byte, uint64_t *addr);
 void RR_ReplayReaderItem_read_WriteROMByteOffset32(const RR_ReplayReaderItem *item, uint8_t *byte, uint32_t *offset);
 void RR_ReplayReaderItem_read_WriteROMByteOffset64(const RR_ReplayReaderItem *item, uint8_t *byte, uint64_t *offset);
+void RR_ReplayReaderItem_read_ResetSystem(const RR_ReplayReaderItem *item);
 
 #ifdef __cplusplus
 }

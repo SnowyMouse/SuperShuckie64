@@ -102,6 +102,10 @@ public:
         RR_ReplayWriter_write_WriteROMByteOffset64(this->writer.get(), byte, offset);
     }
 
+    void write_ResetSystem() {
+        RR_ReplayWriter_write_ResetSystem(this->writer.get());
+    }
+
 private:
     std::unique_ptr<RR_ReplayWriter, void(*)(RR_ReplayWriter *)> writer;
 };
@@ -184,6 +188,10 @@ public:
 
     void read_WriteROMByteOffset64(std::uint8_t &byte, std::uint64_t &offset) const noexcept {
         RR_ReplayReaderItem_read_WriteROMByteOffset64(this->item, &byte, &offset);
+    }
+
+    void read_ResetSystem() const noexcept {
+        RR_ReplayReaderItem_read_ResetSystem(this->item);
     }
 
     #if USE_SPANS == 1

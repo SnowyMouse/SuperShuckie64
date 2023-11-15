@@ -75,9 +75,7 @@ namespace SuperShuckie64 {
         std::vector<std::uint32_t> pixel_buffer;
         PixelBufferView *pixel_buffer_view;
         QGraphicsScene *pixel_buffer_scene = nullptr;
-
-        // Set when we're configuring input
-        bool block_input = false;
+        bool is_resetting = false;
 
         std::unordered_map<SDL_JoystickID, std::shared_ptr<ControllerInputDevice>> input_devices;
 
@@ -130,6 +128,7 @@ namespace SuperShuckie64 {
         void load_replay();
         void stop_replay();
         void open_controls_settings_dialog();
+        void perform_reset();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

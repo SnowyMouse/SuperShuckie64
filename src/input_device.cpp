@@ -77,6 +77,14 @@ static void apply_axis_logic(InputState &response, std::uint8_t input, float val
 }
 
 static void apply_button_logic(InputState &response, std::uint8_t input, std::uint8_t input_rapid_fire, std::uint8_t input_toggle, bool on) {
+    switch(input) {
+        case SettingsValues::SettingsValues_ResetConsole: {
+            response.reset_console = on;
+            return;
+        }
+        default: break;
+    }
+
     auto button_input = generate_gb_input_bitfield(input);
     auto button_input_rapid_fire = generate_gb_input_bitfield(input_rapid_fire);
     auto button_input_toggle = generate_gb_input_bitfield(input_toggle);
@@ -175,6 +183,9 @@ const char *SuperShuckie64::settings_value_to_name(SettingsValues value) noexcep
             return "Turbo";
         case SettingsValues_Slow:
             return "Slow";
+
+        case SettingsValues_ResetConsole:
+            return "Reset console";
     }
 
     return nullptr;
