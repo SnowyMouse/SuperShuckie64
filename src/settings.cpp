@@ -7,18 +7,12 @@ using namespace SuperShuckie64;
 
 QSettings SuperShuckie64::get_settings() noexcept {
     auto local_appdir = std::filesystem::path(QDir::currentPath().toStdString()) / "SuperShuckie64.ini";
-    if(std::filesystem::exists(local_appdir)) {
-        return QSettings(local_appdir.string().c_str(), QSettings::Format::IniFormat);
-    }
-    return QSettings(QSettings::Format::IniFormat, QSettings::Scope::UserScope, "SuperShuckie64", "SuperShuckie64");
+    return QSettings(local_appdir.string().c_str(), QSettings::Format::IniFormat);
 }
 
 std::filesystem::path SuperShuckie64::get_applocal_path() {
-    auto local_appdir = std::filesystem::path(QDir::currentPath().toStdString()) / "UserData";
-    if(std::filesystem::exists(local_appdir)) {
-        return local_appdir;
-    }
-    return std::filesystem::path(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation).toStdString()).make_preferred();
+    auto local_appdir = std::filesystem::path(std::filesystem::path(QDir::currentPath().toStdString()) / "UserData");
+    return local_appdir;
 }
 
 std::filesystem::path SuperShuckie64::get_rom_user_data_path(const char *basename) {
