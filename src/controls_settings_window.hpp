@@ -6,6 +6,7 @@
 #include "input_device.hpp"
 
 class QComboBox;
+class QKeyEvent;
 
 namespace SuperShuckie64 {
     class EmulatorWindow;
@@ -37,6 +38,7 @@ namespace SuperShuckie64 {
         ControlSettingsField *selected_control_setting_box = nullptr;
 
         void handle_input(std::uint8_t input, ControlType control_type);
+        void clear_selected_input();
         void regenerate_controls_container();
     };
 
@@ -46,6 +48,7 @@ namespace SuperShuckie64 {
         ControlSettingsField(QWidget *parent, ControlsSettingsWindow &settings_window, ButtonType button_type, SettingsTuple &setting, SettingsValues value);
 
         void mousePressEvent(QMouseEvent *e) override;
+        void keyPressEvent(QKeyEvent *event) override;
 
         const ButtonType button_type;
         const SettingsValues value;

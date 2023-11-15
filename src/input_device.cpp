@@ -2,6 +2,7 @@ extern "C" {
     #include <gb.h>
 }
 #include "input_device.hpp"
+#include <algorithm>
 
 
 using namespace SuperShuckie64;
@@ -116,7 +117,7 @@ void ControllerInputDevice::register_input(InputState &response, const SDL_Contr
 }
 
 void ControllerInputDevice::register_input(InputState &response, const SDL_ControllerAxisEvent &axis) noexcept {
-    float value = std::min(1.0, std::max(-1.0, axis.value / 32767.0));
+    float value = std::clamp(axis.value / 32767.0, -1.0, 1.0);
     float abs = std::fabs(value);
     float prev = this->axis_values[axis.axis];
     float prev_abs = std::fabs(prev);

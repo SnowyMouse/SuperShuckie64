@@ -55,7 +55,13 @@ add_library(sameboy STATIC
     "${SAMEBOY_DIR}/Core/workboy.c"
 )
 
-target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} -mconsole -lreplay_recorder_c -ludp_command_handler)
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(CONSOLE_ARG "-mconsole")
+else()
+    set(CONSOLE_ARG "")
+endif()
+
+target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} "${CONSOLE_ARG}" -lreplay_recorder_c -ludp_command_handler)
 target_include_directories(supershuckie
     PUBLIC ${Qt6Widgets_INCLUDE_DIRS}
     PUBLIC "${SAMEBOY_DIR}/Core"

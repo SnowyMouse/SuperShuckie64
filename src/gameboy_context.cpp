@@ -318,6 +318,8 @@ void GameboyContext::set_speed(std::uint16_t new_speed) noexcept {
 }
 
 void GameboyContext::handle_set_speed(std::uint16_t new_speed) noexcept {
+    new_speed = std::max(new_speed, static_cast<std::uint16_t>(16));
+
     if(this->speed_multiplier == new_speed) {
         return;
     }

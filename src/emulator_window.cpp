@@ -137,7 +137,7 @@ void EmulatorWindow::update_gameboy_speed() {
     double contribution_from_turbo = 1.0 + (this->turbo_speed - 1.0) * this->input_state.turbo;
     double contribution_from_slow = 1.0 + (this->slow_speed - 1.0) * this->input_state.slow;
     double speed = this->base_speed * contribution_from_turbo * contribution_from_slow;
-    auto total = static_cast<std::uint16_t>(std::min(65535.0, std::max(0.0, speed * static_cast<double>(SPEED_MULTIPLIER_FACTOR))));
+    auto total = static_cast<std::uint16_t>(std::clamp(speed * static_cast<double>(SPEED_MULTIPLIER_FACTOR), 0.0, 65535.0));
     this->gameboy->set_speed(total);
 }
 

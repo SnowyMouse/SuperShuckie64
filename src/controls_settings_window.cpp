@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QComboBox>
+#include <QMouseEvent>
 #include "emulator_window.hpp"
 #include "controls_settings_window.hpp"
 #include "input_device.hpp"
@@ -31,10 +32,23 @@ ControlsSettingsWindow::ControlsSettingsWindow(QWidget *parent, EmulatorWindow &
     this->container_layout->setContentsMargins(0,0,0,0);
     this->regenerate_controls_container();
     layout->addWidget(this->container_widget);
-    auto *save = new QPushButton("OK", this->container_widget);
+
+    auto *bottom_row = new QWidget(this->container_widget);
+    auto *bottom_row_layout = new QHBoxLayout(bottom_row);
+    bottom_row_layout->setContentsMargins(0,0,0,0);
+
+    auto *bottom_row_label = new QLabel("Left-click to edit a setting, right-click to clear it");
+    bottom_row_layout->addWidget(bottom_row_label);
+    bottom_row_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    auto *save = new QPushButton("OK", bottom_row);
     connect(save, SIGNAL(pressed()), this, SLOT(accept()));
-    layout->addWidget(save);
+    bottom_row_layout->addWidget(save);
+
+    layout->addWidget(bottom_row);
+
     this->container_widget->setFixedSize(this->container_widget->sizeHint());
+    this->setWindowTitle("Controls settings");
 }
 
 static std::string input_name(std::uint8_t input, InputType input_type, ControlType control_type) {
@@ -97,6 +111,10 @@ ControlSettingsField::ControlSettingsField(QWidget *parent, ControlsSettingsWind
 
     this->setText(concatenate_input_names_of_type(value, setting, button_type).c_str());
     this->setFixedWidth(125);
+}
+
+void ControlSettingsField::keyPressEvent(QKeyEvent *event) {
+    // do nothing
 }
 
 void ControlsSettingsWindow::regenerate_controls_container() {
@@ -164,6 +182,43 @@ void ControlsSettingsWindow::handle_input(std::uint8_t input, ControlType contro
     this->regenerate_controls_container();
 }
 
+void ControlsSettingsWindow::clear_selected_input() {
+    if(!this->selected_control_setting_box) {
+        return;
+    }
+
+    auto selected_item = this->selected_settings->currentData().toString().toStdString();
+    auto &tuple = this->all_settings[selected_item];
+
+    for(std::size_t control_type = 0; control_type < 3; control_type++) {
+        auto &i = tuple.all_settings[control_type];
+
+        auto button_to_erase = this->selected_control_setting_box->value;
+
+        std::unordered_map<std::uint8_t, std::uint8_t> *selection;
+        switch(this->selected_control_setting_box->button_type) {
+            case ButtonType::Normal: selection = &i.input; break;
+            case ButtonType::RapidFire: selection = &i.input_rapid_fire; break;
+            case ButtonType::Toggle: selection = &i.input_toggle; break;
+        }
+
+        // Have to do a loop because the iterator gets invalidated. Kinda gross but whatever.
+        bool erased = false;
+        do {
+            erased = false;
+            for(auto a : (*selection)) {
+                if(a.second == button_to_erase) {
+                    selection->erase(a.first);
+                    erased = true;
+                    break;
+                }
+            }
+        } while(erased);
+    }
+
+    this->regenerate_controls_container();
+}
+
 void ControlsSettingsWindow::on_device_input(SDL_ControllerButtonEvent &event, ControllerInputDevice &device) {
     auto selected_item = this->selected_settings->currentData().toString().toStdString();
     if(selected_item != device.get_name_settings()) {
@@ -184,6 +239,15 @@ void ControlsSettingsWindow::on_device_input(SDL_ControllerAxisEvent &event, Con
 }
 
 void ControlSettingsField::mousePressEvent(QMouseEvent *e) {
-    QLineEdit::mousePressEvent(e);
-    this->settings_window.selected_control_setting_box = this;
+    auto button = e->button();
+
+    if(button & Qt::LeftButton) {
+        QLineEdit::mousePressEvent(e);
+        this->settings_window.selected_control_setting_box = this;
+    }
+
+    if(button & Qt::RightButton) {
+        this->settings_window.selected_control_setting_box = this;
+        this->settings_window.clear_selected_input();
+    }
 }
