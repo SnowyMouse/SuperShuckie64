@@ -91,6 +91,9 @@ namespace SuperShuckie64 {
 
         int scaling_setting(int new_setting = 0);
 
+        bool ignore_replay_speed_changes_setting(int new_setting = -1);
+        QAction *ignore_replay_speed_changes_option = nullptr;
+
         // WARNING: Does not save SRAM
         void reload_current_rom_data();
 
@@ -129,6 +132,7 @@ namespace SuperShuckie64 {
         void stop_replay();
         void open_controls_settings_dialog();
         void perform_reset();
+        void ignore_replay_speed_changes();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

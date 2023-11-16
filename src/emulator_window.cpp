@@ -111,6 +111,7 @@ bool EmulatorWindow::load_rom(const std::optional<std::filesystem::path> &path) 
 void EmulatorWindow::reload_current_rom_data() {
     this->gameboy = std::make_unique<GameboyContext>(GB_model_t::GB_MODEL_CGB_B, this->current_rom_data, this->udp_command_server);
     this->currently_playing_back_recording = false;
+    this->gameboy->set_ignore_speed_changes_on_replay(this->ignore_replay_speed_changes_setting());
 
     if(this->current_rom) {
         auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
@@ -121,6 +122,7 @@ void EmulatorWindow::reload_current_rom_data() {
             }
         }
         this->update_save_name_in_title_bar();
+        this->update_gameboy_speed();
     }
 }
 
@@ -292,7 +294,7 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
         return;
     }
 
-    if(!this->suppress_game_input && !this->currently_playing_back_recording) {
+    if(!this->suppress_game_input) {
         what->second->register_input(this->input_state, event, on);
         this->update_input_state_on_gameboy();
     }
@@ -301,14 +303,19 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
 }
 
 void EmulatorWindow::update_input_state_on_gameboy() noexcept {
-    if(this->input_state.reset_console) {
-        this->perform_reset();
-    }
-    this->is_resetting = this->input_state.reset_console;
+    if(!this->currently_playing_back_recording) {
+        if(this->input_state.reset_console) {
+            this->perform_reset();
+        }
+        this->is_resetting = this->input_state.reset_console;
 
-    this->gameboy->set_input(this->input_state.input | this->input_state.input_toggle);
-    this->gameboy->set_rapid_fire_input(this->input_state.input_rapid_fire);
-    this->update_gameboy_speed();
+        this->gameboy->set_input(this->input_state.input | this->input_state.input_toggle);
+        this->gameboy->set_rapid_fire_input(this->input_state.input_rapid_fire);
+    }
+
+    if(!this->currently_playing_back_recording || ignore_replay_speed_changes_option->isChecked()) {
+        this->update_gameboy_speed();
+    }
 }
 
 void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
@@ -318,7 +325,7 @@ void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
         return;
     }
 
-    if(!this->suppress_game_input && !this->currently_playing_back_recording) {
+    if(!this->suppress_game_input) {
         what->second->register_input(this->input_state, event);
         this->update_input_state_on_gameboy();
     }
@@ -409,4 +416,12 @@ int EmulatorWindow::scaling_setting(int new_setting) {
     }
 
     return setting.value("window/scale", 6).toInt();
+}
+
+bool EmulatorWindow::ignore_replay_speed_changes_setting(int new_setting) {
+    auto setting = get_settings();
+    if(new_setting == 0 || new_setting == 1) {
+        setting.setValue("replay/ignore_speed_changes", static_cast<bool>(new_setting));
+    }
+    return setting.value("replay/ignore_speed_changes", 0).toBool();
 }

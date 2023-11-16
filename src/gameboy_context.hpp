@@ -94,6 +94,11 @@ namespace SuperShuckie64 {
         std::uint64_t get_current_frame_index() noexcept;
 
         /**
+         * Set whether or not to ignore speed changes on replay playback
+         */
+        void set_ignore_speed_changes_on_replay(bool ignore_speed_changes) noexcept;
+
+        /**
          * Do a hard reset of the console
          */
         void reset() noexcept {
@@ -141,6 +146,8 @@ namespace SuperShuckie64 {
         std::size_t work_framebuffer = 2;
         std::size_t pixel_count = 0;
         std::uint32_t frames_since_last_save_state;
+
+        bool ignore_replay_speed_changes = false;
 
         std::uint32_t keyframe_index = 0;
 

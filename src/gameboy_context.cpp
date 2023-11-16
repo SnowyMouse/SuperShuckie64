@@ -325,7 +325,7 @@ void GameboyContext::set_speed(std::uint16_t new_speed) noexcept {
 }
 
 void GameboyContext::handle_set_speed(std::uint16_t new_speed) noexcept {
-    new_speed = std::max(new_speed, static_cast<std::uint16_t>(16));
+    new_speed = std::max(new_speed, static_cast<std::uint16_t>(64));
 
     if(this->speed_multiplier == new_speed) {
         return;
@@ -509,7 +509,9 @@ void GameboyContext::skip_to_frame(std::uint64_t frame) noexcept {
         std::span<const std::byte> data;
         std::uint32_t index;
         (*this->current_playback)[keyframe_found.packet_index].read_AddSaveState(index, data);
-        this->handle_set_speed(keyframe_found.current_speed);
+        if(!this->ignore_replay_speed_changes) {
+            this->handle_set_speed(keyframe_found.current_speed);
+        }
         this->handle_new_input(keyframe_found.current_input);
         GB_load_state_from_buffer(this->gameboy.get(), reinterpret_cast<const std::uint8_t *>(data.data()), data.size());
 
@@ -562,9 +564,11 @@ void GameboyContext::play_latest_packet() {
     while(true) {
         switch(latest.get_packet_type()) {
             case RR_PacketType::RR_ChangeGameSpeed: {
-                std::uint16_t new_speed;
-                latest.read_ChangeGameSpeed(new_speed);
-                this->handle_set_speed(new_speed);
+                if(!this->ignore_replay_speed_changes) {
+                    std::uint16_t new_speed;
+                    latest.read_ChangeGameSpeed(new_speed);
+                    this->handle_set_speed(new_speed);
+                }
                 break;
             }
             case RR_PacketType::RR_AddSaveState: {
@@ -614,4 +618,11 @@ void GameboyContext::play_latest_packet() {
             return;
         }
     }
+}
+
+void GameboyContext::set_ignore_speed_changes_on_replay(bool ignore_speed_changes) noexcept {
+    // we acquire context here for timing reasons rather than for data races
+    this->acquire_context();
+    this->ignore_replay_speed_changes = ignore_speed_changes;
+    this->unlock_context();
 }

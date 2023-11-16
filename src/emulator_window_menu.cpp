@@ -52,9 +52,7 @@ void EmulatorWindow::set_up_menu() {
 
         auto *action = scaling->addAction(str);
         action->setCheckable(true);
-        if(i == scaling_setting) {
-            action->setChecked(true);
-        }
+        action->setChecked(i == scaling_setting);
 
         action->setData(i);
     }
@@ -77,6 +75,11 @@ void EmulatorWindow::set_up_menu() {
     this->gameplay_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Load replay...", this->gameplay_menu, load_replay());
     ADD_ACTION_AND_CONNECT("Stop replay", this->gameplay_menu, stop_replay());
+    ADD_ACTION_AND_CONNECT_THEN("Ignore speed changes from replay", this->gameplay_menu, ignore_replay_speed_changes(), \
+        a->setCheckable(true); \
+        a->setChecked(this->ignore_replay_speed_changes_setting()); \
+        this->ignore_replay_speed_changes_option = a; \
+    );
     this->gameplay_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Reset console", this->gameplay_menu, perform_reset());
 }
@@ -122,7 +125,6 @@ void EmulatorWindow::save_sram() {
     }
 
     if(this->current_save_name == RESERVED_REPLAY_PLAYBACK_SAVE_NAME) {
-        this->set_window_title_element("Nah");
         if(this->gameboy->is_playing_back() || true) {
             return; // no need to save if playing back
         }
@@ -503,4 +505,11 @@ void EmulatorWindow::perform_reset() {
         return;
     }
     this->gameboy->reset();
+}
+
+void EmulatorWindow::ignore_replay_speed_changes() {
+    bool ignored = this->ignore_replay_speed_changes_option->isChecked();
+    this->ignore_replay_speed_changes_setting(ignored);
+    this->gameboy->set_ignore_speed_changes_on_replay(ignored);
+    this->update_gameboy_speed();
 }
