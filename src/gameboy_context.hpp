@@ -84,12 +84,12 @@ namespace SuperShuckie64 {
         void set_speed(std::uint16_t new_speed) noexcept;
 
         /**
-         * Skip to this frame
+         * Skip to this frame in a replay
          */
         void skip_to_frame(std::uint64_t frame) noexcept;
 
         /**
-         * Get the current frame index
+         * Get the current frame index in a replay
          */
         std::uint64_t get_current_frame_index() noexcept;
 

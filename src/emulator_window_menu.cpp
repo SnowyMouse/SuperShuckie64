@@ -80,6 +80,8 @@ void EmulatorWindow::set_up_menu() {
         a->setChecked(this->ignore_replay_speed_changes_setting()); \
         this->ignore_replay_speed_changes_option = a; \
     );
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip forward", this->gameplay_menu, skip_forward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Period));
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip backward", this->gameplay_menu, skip_backward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Comma));
     this->gameplay_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Reset console", this->gameplay_menu, perform_reset());
 }
@@ -512,4 +514,19 @@ void EmulatorWindow::ignore_replay_speed_changes() {
     this->ignore_replay_speed_changes_setting(ignored);
     this->gameboy->set_ignore_speed_changes_on_replay(ignored);
     this->update_gameboy_speed();
+}
+
+void EmulatorWindow::skip_forward() {
+    if(!this->currently_playing_back_recording) {
+        return;
+    }
+    this->gameboy->skip_to_frame(this->gameboy->get_current_frame_index() + 600);
+}
+
+void EmulatorWindow::skip_backward() {
+    if(!this->currently_playing_back_recording) {
+        return;
+    }
+    auto frame = this->gameboy->get_current_frame_index();
+    this->gameboy->skip_to_frame(frame - std::min(frame, static_cast<std::size_t>(600)));
 }
