@@ -58,7 +58,7 @@ add_library(sameboy STATIC
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     set(CONSOLE_ARG "-mconsole")
 else()
-    set(CONSOLE_ARG "-mconsole")
+    set(CONSOLE_ARG "")
 endif()
 
 target_link_libraries(supershuckie Qt6::Widgets sameboy ${SDL2_STATIC_LIBRARIES} "${CONSOLE_ARG}" -lreplay_recorder_c -ludp_command_handler)
