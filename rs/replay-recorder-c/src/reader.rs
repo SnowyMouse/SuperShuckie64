@@ -266,3 +266,8 @@ pub extern "C" fn RR_ReplayReaderItem_read_ResetSystem(
 ) {
     let _ = get_packet_or_bail!(ResetSystem, item);
 }
+
+#[no_mangle]
+pub extern "C" fn RR_PrintBacktrace() {
+    eprintln!("{}", std::backtrace::Backtrace::force_capture());
+}

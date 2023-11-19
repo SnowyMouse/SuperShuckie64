@@ -7,3 +7,6 @@ members = [
     "replay-recorder",
     "replay-recorder-c"
 ]
+
+[profile.release]
+panic = "abort"
