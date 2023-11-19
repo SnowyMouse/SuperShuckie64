@@ -111,6 +111,7 @@ bool EmulatorWindow::load_rom(const std::optional<std::filesystem::path> &path) 
 void EmulatorWindow::reload_current_rom_data() {
     this->gameboy = std::make_unique<GameboyContext>(GB_model_t::GB_MODEL_CGB_B, this->current_rom_data, this->udp_command_server);
     this->currently_playing_back_recording = false;
+    this->currently_recording = false;
     this->gameboy->set_ignore_speed_changes_on_replay(this->ignore_replay_speed_changes_setting());
 
     if(this->current_rom) {
@@ -136,6 +137,10 @@ void EmulatorWindow::update_save_name_in_title_bar() {
 }
 
 void EmulatorWindow::update_gameboy_speed() {
+    if(this->currently_recording && this->ignore_recording_speed_changes_option->isChecked()) {
+        return;
+    }
+
     double contribution_from_turbo = 1.0 + (this->turbo_speed - 1.0) * this->input_state.turbo;
     double contribution_from_slow = 1.0 + (this->slow_speed - 1.0) * this->input_state.slow;
     double speed = this->base_speed * contribution_from_turbo * contribution_from_slow;
@@ -248,11 +253,11 @@ void EmulatorWindow::revert_window_title() noexcept {
 
     this->setWindowTitle(fmt);
 
-    if(this->gameboy->is_recording()) {
+    if(this->currently_recording) {
         this->setWindowTitle(this->windowTitle() + " [RECORDING REPLAY]");
     }
 
-    if(this->gameboy->is_playing_back()) {
+    if(this->currently_playing_back_recording) {
         this->setWindowTitle(this->windowTitle() + " [PLAYING REPLAY]");
     }
 }
@@ -334,8 +339,10 @@ void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
 }
 
 void EmulatorWindow::handle_loaded_rom() noexcept {
-    this->set_window_title_element("ROM loaded successfully!");
-    this->gameplay_menu->setEnabled(this->current_rom != std::nullopt);
+    bool rom_loaded = this->current_rom != std::nullopt;
+    this->set_window_title_element(rom_loaded ? "ROM loaded successfully!" : "ROM unloaded successfully!");
+    this->gameplay_menu->setEnabled(rom_loaded);
+    this->replays_menu->setEnabled(rom_loaded);
     this->gameboy->set_paused(false);
 }
 
@@ -424,4 +431,12 @@ bool EmulatorWindow::ignore_replay_speed_changes_setting(int new_setting) {
         setting.setValue("replay/ignore_speed_changes", static_cast<bool>(new_setting));
     }
     return setting.value("replay/ignore_speed_changes", 0).toBool();
+}
+
+bool EmulatorWindow::ignore_recording_speed_changes_setting(int new_setting) {
+    auto setting = get_settings();
+    if(new_setting == 0 || new_setting == 1) {
+        setting.setValue("replay/disable_speed_changes_when_recording", static_cast<bool>(new_setting));
+    }
+    return setting.value("replay/disable_speed_changes_when_recording", 0).toBool();
 }

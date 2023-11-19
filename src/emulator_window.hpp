@@ -51,7 +51,10 @@ namespace SuperShuckie64 {
         std::string displayed_save_name;
         std::shared_ptr<UDPCommandHandler> udp_command_server;
 
+        // store these here to reduce mutex locking
+        bool currently_recording = false;
         bool currently_playing_back_recording = false;
+
         bool suppress_game_input = false;
         bool valid = false;
         double base_speed = 1.0;
@@ -68,6 +71,7 @@ namespace SuperShuckie64 {
         std::optional<std::chrono::steady_clock::time_point> revert_window_title_timer;
 
         QMenu *gameplay_menu;
+        QMenu *replays_menu;
         InputState input_state = {};
         std::unique_ptr<GameboyContext> gameboy;
         QPixmap pixel_buffer_pixmap;
@@ -93,6 +97,8 @@ namespace SuperShuckie64 {
 
         bool ignore_replay_speed_changes_setting(int new_setting = -1);
         QAction *ignore_replay_speed_changes_option = nullptr;
+        bool ignore_recording_speed_changes_setting(int new_setting = -1);
+        QAction *ignore_recording_speed_changes_option = nullptr;
 
         // WARNING: Does not save SRAM
         void reload_current_rom_data();
@@ -133,6 +139,7 @@ namespace SuperShuckie64 {
         void open_controls_settings_dialog();
         void perform_reset();
         void ignore_replay_speed_changes();
+        void ignore_recording_speed_changes();
         void skip_forward();
         void skip_backward();
 

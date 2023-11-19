@@ -24,6 +24,7 @@ void EmulatorWindow::set_up_menu() {
     // Add base menus
     auto *file_menu = bar->addMenu("File");
     this->gameplay_menu = bar->addMenu("Gameplay");
+    this->replays_menu = bar->addMenu("Replays");
     auto *settings_menu = bar->addMenu("Settings");
 
     #define ADD_ACTION_AND_CONNECT_THEN(text, menu, action, ...) { \
@@ -66,24 +67,29 @@ void EmulatorWindow::set_up_menu() {
     ADD_ACTION_AND_CONNECT("Controls settings...", settings_menu, open_controls_settings_dialog());
     ADD_ACTION_AND_CONNECT("Reload all controllers", settings_menu, reload_all_controllers());
 
-
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("New game...", this->gameplay_menu, new_game(), QKeyCombination(Qt::ControlModifier, Qt::Key_N));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Load game...", this->gameplay_menu, load_game(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_O));
     this->gameplay_menu->addSeparator();
-    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->gameplay_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
-    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->gameplay_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
-    this->gameplay_menu->addSeparator();
-    ADD_ACTION_AND_CONNECT("Load replay...", this->gameplay_menu, load_replay());
-    ADD_ACTION_AND_CONNECT("Stop replay", this->gameplay_menu, stop_replay());
-    ADD_ACTION_AND_CONNECT_THEN("Ignore speed changes from replay", this->gameplay_menu, ignore_replay_speed_changes(), \
+    ADD_ACTION_AND_CONNECT("Reset console", this->gameplay_menu, perform_reset());
+
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->replays_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->replays_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
+    ADD_ACTION_AND_CONNECT_THEN("Disable speed changes when recording", this->replays_menu, ignore_recording_speed_changes(), \
+        a->setCheckable(true); \
+        a->setChecked(this->ignore_recording_speed_changes_setting()); \
+        this->ignore_recording_speed_changes_option = a; \
+    );
+
+    this->replays_menu->addSeparator();
+    ADD_ACTION_AND_CONNECT("Load replay...", this->replays_menu, load_replay());
+    ADD_ACTION_AND_CONNECT("Stop replay", this->replays_menu, stop_replay());
+    ADD_ACTION_AND_CONNECT_THEN("Ignore speed changes from replay", this->replays_menu, ignore_replay_speed_changes(), \
         a->setCheckable(true); \
         a->setChecked(this->ignore_replay_speed_changes_setting()); \
         this->ignore_replay_speed_changes_option = a; \
     );
-    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip forward", this->gameplay_menu, skip_forward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Period));
-    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip backward", this->gameplay_menu, skip_backward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Comma));
-    this->gameplay_menu->addSeparator();
-    ADD_ACTION_AND_CONNECT("Reset console", this->gameplay_menu, perform_reset());
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip forward", this->replays_menu, skip_forward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Period));
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip backward", this->replays_menu, skip_backward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Comma));
 }
 
 
@@ -366,17 +372,15 @@ void EmulatorWindow::start_replay_recording() {
     }
     this->gameboy->start_replay_recording(current_rom_name.c_str());
     this->set_window_title_element("Replay started!");
+    this->currently_recording = true;
 }
 
 void EmulatorWindow::stop_replay_recording() {
-    if(!this->current_rom) {
-        this->set_window_title_element("Can't start a replay recording - no ROM loaded!");
-        return;
-    }
     if(!this->gameboy->is_recording()) {
         this->set_window_title_element("Can't stop a replay recording - not recording!");
         return;
     }
+    this->currently_recording = false;
     auto current_recording = this->gameboy->get_current_replay_recording_data();
     this->gameboy->stop_replay_recording();
 
@@ -397,7 +401,6 @@ void EmulatorWindow::stop_replay_recording() {
         }
         c++;
     }
-
 }
 
 void EmulatorWindow::load_replay() {
@@ -512,6 +515,13 @@ void EmulatorWindow::perform_reset() {
 void EmulatorWindow::ignore_replay_speed_changes() {
     bool ignored = this->ignore_replay_speed_changes_option->isChecked();
     this->ignore_replay_speed_changes_setting(ignored);
+    this->gameboy->set_ignore_speed_changes_on_replay(ignored);
+    this->update_gameboy_speed();
+}
+
+void EmulatorWindow::ignore_recording_speed_changes() {
+    bool ignored = this->ignore_recording_speed_changes_option->isChecked();
+    this->ignore_recording_speed_changes_setting(ignored);
     this->gameboy->set_ignore_speed_changes_on_replay(ignored);
     this->update_gameboy_speed();
 }
