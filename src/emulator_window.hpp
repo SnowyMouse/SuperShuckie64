@@ -99,6 +99,7 @@ namespace SuperShuckie64 {
         QAction *ignore_replay_speed_changes_option = nullptr;
         bool ignore_recording_speed_changes_setting(int new_setting = -1);
         QAction *ignore_recording_speed_changes_option = nullptr;
+        std::optional<std::string> recording_file;
 
         // WARNING: Does not save SRAM
         void reload_current_rom_data();
@@ -120,6 +121,10 @@ namespace SuperShuckie64 {
         void closeEvent(QCloseEvent *event) override;
         void switch_sram(const std::string &new_sram);
         void update_save_name_in_title_bar();
+        bool check_can_start_recording();
+        std::optional<std::string> pick_replay();
+        std::optional<std::vector<std::byte>> read_replay_file(const char *replay);
+        void set_up_replay_playback_environment();
 
 
     private slots:
@@ -142,6 +147,7 @@ namespace SuperShuckie64 {
         void ignore_recording_speed_changes();
         void skip_forward();
         void skip_backward();
+        void continue_replay_recording();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

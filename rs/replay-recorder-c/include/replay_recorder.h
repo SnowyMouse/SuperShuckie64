@@ -44,6 +44,8 @@ typedef enum RR_PacketType {
 } RR_PacketType;
 
 RR_ReplayWriter *RR_ReplayWriter_new(const char *emulator_info, const char *rom_name, const void *rom_data, size_t rom_data_size, const void *bios_data, size_t bios_data_size);
+RR_ReplayWriter *RR_ReplayWriter_new_from_collection(const char *emulator_info, const char *rom_name, const void *rom_data, size_t rom_data_size, const void *bios_data, size_t bios_data_size, RR_ReplayReaderItemCollection *collection, size_t from, size_t to);
+RR_ReplayWriter *RR_ReplayWriter_new_from_stream(const void *stream, size_t length);
 void RR_ReplayWriter_free(RR_ReplayWriter *writer);
 void RR_ReplayWriter_get_stream(const RR_ReplayWriter *writer, const void **stream, size_t *length);
 void RR_ReplayWriter_next_frame(RR_ReplayWriter *writer);

@@ -110,6 +110,11 @@ impl ReplayReaderItem {
     pub fn get_packet_type(&self) -> PacketType {
         self.packet_type
     }
+
+    /// Get the reference to the packet
+    pub fn get_packet(&self) -> &dyn Packet {
+        self.packet.as_ref()
+    }
 }
 
 fn read_packet_to_box<P: Packet + 'static, R: Read>(stream: &mut R) -> Result<Box<dyn Packet>, Error> where P: Sized {

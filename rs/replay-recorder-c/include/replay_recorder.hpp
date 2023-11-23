@@ -18,98 +18,6 @@
 
 static_assert(sizeof(std::byte) == sizeof(std::uint8_t));
 
-class ReplayWriter {
-public:
-    ReplayWriter(const char *emulator_info, const char *rom_name, const void *rom_data, std::size_t rom_data_size, const void *bios_data, std::size_t bios_data_size) noexcept :
-        writer(RR_ReplayWriter_new(emulator_info, rom_name, rom_data, rom_data_size, bios_data, bios_data_size), RR_ReplayWriter_free) {}
-
-    std::vector<std::byte> get_stream() const noexcept {
-        std::size_t length;
-        const std::byte *data;
-        RR_ReplayWriter_get_stream(this->writer.get(), reinterpret_cast<const void **>(&data), &length);
-        return std::vector<std::byte>(data, data + length);
-    }
-
-    void next_frame() noexcept {
-        RR_ReplayWriter_next_frame(this->writer.get());
-    }
-
-    void write_SetInput8(std::uint8_t input) noexcept {
-        RR_ReplayWriter_write_SetInput8(this->writer.get(), input);
-    }
-
-    void write_SetInput16(std::uint16_t input) noexcept {
-        RR_ReplayWriter_write_SetInput16(this->writer.get(), input);
-    }
-
-    void write_SetInput32(std::uint32_t input) noexcept {
-        RR_ReplayWriter_write_SetInput32(this->writer.get(), input);
-    }
-
-    void write_SetInput64(std::uint64_t input) noexcept {
-        RR_ReplayWriter_write_SetInput64(this->writer.get(), input);
-    }
-
-    void write_SetInputData8(const void *input, std::size_t input_length) noexcept {
-        RR_ReplayWriter_write_SetInputData8(this->writer.get(), input, input_length);
-    }
-
-    void write_SetInputData16(const void *input, std::size_t input_length) noexcept {
-        RR_ReplayWriter_write_SetInputData16(this->writer.get(), input, input_length);
-    }
-
-    void write_SetInputData32(const void *input, std::size_t input_length) noexcept {
-        RR_ReplayWriter_write_SetInputData32(this->writer.get(), input, input_length);
-    }
-
-    void write_SetInputData64(const void *input, std::size_t input_length) noexcept {
-        RR_ReplayWriter_write_SetInputData64(this->writer.get(), input, input_length);
-    }
-
-    void write_Bookmark(const RR_String32 &bookmark) noexcept {
-        RR_ReplayWriter_write_Bookmark(this->writer.get(), &bookmark);
-    }
-
-    void write_CustomData(const RR_String32 &name, const void *data, std::size_t data_length) noexcept {
-        RR_ReplayWriter_write_CustomData(this->writer.get(), &name, data, data_length);
-    }
-
-    void write_ChangeGameSpeed(std::uint16_t speed) noexcept {
-        RR_ReplayWriter_write_ChangeGameSpeed(this->writer.get(), speed);
-    }
-
-    void write_AddSaveState(std::uint32_t index, const void *data, std::size_t data_length) noexcept {
-        RR_ReplayWriter_write_AddSaveState(this->writer.get(), index, data, data_length);
-    }
-
-    void write_LoadSaveState(std::uint32_t index) noexcept {
-        RR_ReplayWriter_write_LoadSaveState(this->writer.get(), index);
-    }
-
-    void write_WriteRAMByteAddr32(std::uint8_t byte, std::uint32_t offset) {
-        RR_ReplayWriter_write_WriteRAMByteAddr32(this->writer.get(), byte, offset);
-    }
-
-    void write_WriteRAMByteAddr64(std::uint8_t byte, std::uint64_t offset) {
-        RR_ReplayWriter_write_WriteRAMByteAddr64(this->writer.get(), byte, offset);
-    }
-
-    void write_WriteROMByteOffset32(std::uint8_t byte, std::uint32_t offset) {
-        RR_ReplayWriter_write_WriteROMByteOffset32(this->writer.get(), byte, offset);
-    }
-
-    void write_WriteROMByteOffset64(std::uint8_t byte, std::uint64_t offset) {
-        RR_ReplayWriter_write_WriteROMByteOffset64(this->writer.get(), byte, offset);
-    }
-
-    void write_ResetSystem() {
-        RR_ReplayWriter_write_ResetSystem(this->writer.get());
-    }
-
-private:
-    std::unique_ptr<RR_ReplayWriter, void(*)(RR_ReplayWriter *)> writer;
-};
-
 class ReplayReaderItem {
 public:
     ReplayReaderItem(const RR_ReplayReaderItem *item) noexcept : item(item) {}
@@ -243,7 +151,10 @@ private:
     const RR_ReplayReaderItem *item;
 };
 
+class ReplayWriter;
+
 class ReplayReaderItemCollection {
+    friend class ReplayWriter;
 public:
     ReplayReaderItemCollection(RR_ReplayReaderItemCollection *collection) noexcept : collection(collection, RR_ReplayReaderItemCollection_free) {}
 
@@ -289,5 +200,103 @@ private:
 };
 
 #undef USE_SPANS
+
+class ReplayWriter {
+public:
+    ReplayWriter(const char *emulator_info, const char *rom_name, const void *rom_data, std::size_t rom_data_size, const void *bios_data, std::size_t bios_data_size) noexcept :
+        writer(RR_ReplayWriter_new(emulator_info, rom_name, rom_data, rom_data_size, bios_data, bios_data_size), RR_ReplayWriter_free) {}
+
+    ReplayWriter(const char *emulator_info, const char *rom_name, const void *rom_data, std::size_t rom_data_size, const void *bios_data, std::size_t bios_data_size, ReplayReaderItemCollection &collection, std::size_t from, std::size_t to) noexcept :
+        writer(RR_ReplayWriter_new_from_collection(emulator_info, rom_name, rom_data, rom_data_size, bios_data, bios_data_size, collection.collection.get(), from, to), RR_ReplayWriter_free) {}
+
+    ReplayWriter(const std::byte *stream, std::size_t length) noexcept :
+        writer(RR_ReplayWriter_new_from_stream(stream, length), RR_ReplayWriter_free) {}
+
+    std::vector<std::byte> get_stream() const noexcept {
+        std::size_t length;
+        const std::byte *data;
+        RR_ReplayWriter_get_stream(this->writer.get(), reinterpret_cast<const void **>(&data), &length);
+        return std::vector<std::byte>(data, data + length);
+    }
+
+    void next_frame() noexcept {
+        RR_ReplayWriter_next_frame(this->writer.get());
+    }
+
+    void write_SetInput8(std::uint8_t input) noexcept {
+        RR_ReplayWriter_write_SetInput8(this->writer.get(), input);
+    }
+
+    void write_SetInput16(std::uint16_t input) noexcept {
+        RR_ReplayWriter_write_SetInput16(this->writer.get(), input);
+    }
+
+    void write_SetInput32(std::uint32_t input) noexcept {
+        RR_ReplayWriter_write_SetInput32(this->writer.get(), input);
+    }
+
+    void write_SetInput64(std::uint64_t input) noexcept {
+        RR_ReplayWriter_write_SetInput64(this->writer.get(), input);
+    }
+
+    void write_SetInputData8(const void *input, std::size_t input_length) noexcept {
+        RR_ReplayWriter_write_SetInputData8(this->writer.get(), input, input_length);
+    }
+
+    void write_SetInputData16(const void *input, std::size_t input_length) noexcept {
+        RR_ReplayWriter_write_SetInputData16(this->writer.get(), input, input_length);
+    }
+
+    void write_SetInputData32(const void *input, std::size_t input_length) noexcept {
+        RR_ReplayWriter_write_SetInputData32(this->writer.get(), input, input_length);
+    }
+
+    void write_SetInputData64(const void *input, std::size_t input_length) noexcept {
+        RR_ReplayWriter_write_SetInputData64(this->writer.get(), input, input_length);
+    }
+
+    void write_Bookmark(const RR_String32 &bookmark) noexcept {
+        RR_ReplayWriter_write_Bookmark(this->writer.get(), &bookmark);
+    }
+
+    void write_CustomData(const RR_String32 &name, const void *data, std::size_t data_length) noexcept {
+        RR_ReplayWriter_write_CustomData(this->writer.get(), &name, data, data_length);
+    }
+
+    void write_ChangeGameSpeed(std::uint16_t speed) noexcept {
+        RR_ReplayWriter_write_ChangeGameSpeed(this->writer.get(), speed);
+    }
+
+    void write_AddSaveState(std::uint32_t index, const void *data, std::size_t data_length) noexcept {
+        RR_ReplayWriter_write_AddSaveState(this->writer.get(), index, data, data_length);
+    }
+
+    void write_LoadSaveState(std::uint32_t index) noexcept {
+        RR_ReplayWriter_write_LoadSaveState(this->writer.get(), index);
+    }
+
+    void write_WriteRAMByteAddr32(std::uint8_t byte, std::uint32_t offset) {
+        RR_ReplayWriter_write_WriteRAMByteAddr32(this->writer.get(), byte, offset);
+    }
+
+    void write_WriteRAMByteAddr64(std::uint8_t byte, std::uint64_t offset) {
+        RR_ReplayWriter_write_WriteRAMByteAddr64(this->writer.get(), byte, offset);
+    }
+
+    void write_WriteROMByteOffset32(std::uint8_t byte, std::uint32_t offset) {
+        RR_ReplayWriter_write_WriteROMByteOffset32(this->writer.get(), byte, offset);
+    }
+
+    void write_WriteROMByteOffset64(std::uint8_t byte, std::uint64_t offset) {
+        RR_ReplayWriter_write_WriteROMByteOffset64(this->writer.get(), byte, offset);
+    }
+
+    void write_ResetSystem() {
+        RR_ReplayWriter_write_ResetSystem(this->writer.get());
+    }
+
+private:
+    std::unique_ptr<RR_ReplayWriter, void(*)(RR_ReplayWriter *)> writer;
+};
 
 #endif

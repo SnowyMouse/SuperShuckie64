@@ -118,6 +118,8 @@ namespace SuperShuckie64 {
         void start_replay_playback(const std::vector<std::byte> &replay);
         void stop_replay_playback();
 
+        void start_recording_from_end_of_replay(const std::vector<std::byte> &replay);
+
     private:
         void start_thread() noexcept;
         void set_up_gameboy(GB_model_t model, const std::vector<std::byte> &rom) noexcept;
@@ -189,8 +191,11 @@ namespace SuperShuckie64 {
         std::size_t current_playback_offset;
         std::size_t current_playback_delay;
         std::uint64_t current_frame_index = 0;
+        std::uint64_t playback_command_count = 0;
         std::optional<std::uint64_t> target_frame_turbo;
         std::uint64_t total_playback_frames;
+
+        std::optional<std::vector<std::byte>> replay_to_append;
 
         void play_latest_packet();
 
@@ -199,7 +204,8 @@ namespace SuperShuckie64 {
 
         std::vector<std::byte> current_rom_data, current_boot_rom_data;
 
-
+        void start_replay_playback_inner(ReplayReaderItemCollection &&replay);
+        void skip_to_frame_inner(std::uint64_t frame) noexcept;
         void handle_udp_commands() noexcept;
         void run_thread() noexcept;
     };

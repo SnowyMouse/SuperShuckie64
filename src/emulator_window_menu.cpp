@@ -74,6 +74,7 @@ void EmulatorWindow::set_up_menu() {
 
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->replays_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->replays_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
+    ADD_ACTION_AND_CONNECT("Resume recording replay", this->replays_menu, continue_replay_recording());
     ADD_ACTION_AND_CONNECT_THEN("Disable speed changes when recording", this->replays_menu, ignore_recording_speed_changes(), \
         a->setCheckable(true); \
         a->setChecked(this->ignore_recording_speed_changes_setting()); \
@@ -357,22 +358,59 @@ void EmulatorWindow::reload_speed_settings() noexcept {
     this->update_gameboy_speed();
 }
 
-void EmulatorWindow::start_replay_recording() {
+bool EmulatorWindow::check_can_start_recording() {
     if(!this->current_rom) {
         this->set_window_title_element("Can't start a replay recording - no ROM loaded!");
-        return;
+        return false;
     }
     if(this->gameboy->is_recording()) {
         this->set_window_title_element("Can't start a replay recording - already recording!");
-        return;
+        return false;
     }
     if(this->gameboy->is_playing_back()) {
         this->set_window_title_element("Can't start a replay recording - playback in process!");
+        return false;
+    }
+    return true;
+}
+
+void EmulatorWindow::start_replay_recording() {
+    if(!this->check_can_start_recording()) {
         return;
     }
+    this->recording_file = {};
     this->gameboy->start_replay_recording(current_rom_name.c_str());
     this->set_window_title_element("Replay started!");
     this->currently_recording = true;
+}
+
+void EmulatorWindow::continue_replay_recording() {
+    if(!this->check_can_start_recording()) {
+        return;
+    }
+    auto replay = this->pick_replay();
+    if(!replay) {
+        return;
+    }
+    auto data = this->read_replay_file(replay->c_str());
+    if(!data) {
+        return;
+    }
+
+    this->recording_file = replay;
+    this->set_up_replay_playback_environment();
+    this->gameboy->start_recording_from_end_of_replay(*data);
+    this->set_window_title_element("Replay resumed!");
+    this->currently_recording = true;
+}
+
+void EmulatorWindow::set_up_replay_playback_environment() {
+    // Save what we have
+    this->save_sram();
+
+    // Reload the emulator
+    this->current_save_name = RESERVED_REPLAY_PLAYBACK_SAVE_NAME;
+    this->reload_current_rom_data();
 }
 
 void EmulatorWindow::stop_replay_recording() {
@@ -384,26 +422,36 @@ void EmulatorWindow::stop_replay_recording() {
     auto current_recording = this->gameboy->get_current_replay_recording_data();
     this->gameboy->stop_replay_recording();
 
-    unsigned int c = 0;
-    while(true) {
-        char fmt[512];
-        std::snprintf(fmt, sizeof(fmt), "%s-%u", current_save_name.c_str(), c);
-        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, fmt);
-        if(!std::filesystem::exists(path)) {
-            if(!write_file(path, current_recording)) {
-                DISPLAY_ERROR_DIALOG("Failed to save replay", "Could not write replay file %s", fmt);
-                return;
+    std::filesystem::path path;
+
+    if(!this->recording_file) {
+        unsigned int c = 0;
+        while(true) {
+            char fmt[512];
+            std::snprintf(fmt, sizeof(fmt), "%s-%u", current_save_name.c_str(), c);
+            path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, fmt);
+            if(!std::filesystem::exists(path)) {
+                this->recording_file = fmt;
+                break;
             }
-            char fmt_result[600];
-            std::snprintf(fmt_result, sizeof(fmt_result), "Replay written to %s", fmt);
-            this->set_window_title_element(fmt_result);
-            break;
+            c++;
         }
-        c++;
     }
+    else {
+        path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, this->recording_file->c_str());
+    }
+
+    const char *file = this->recording_file->c_str();
+    if(!write_file(path, current_recording)) {
+        DISPLAY_ERROR_DIALOG("Failed to save replay", "Could not write replay file %s", file);
+        return;
+    }
+    char fmt_result[600];
+    std::snprintf(fmt_result, sizeof(fmt_result), "Replay written to %s", file);
+    this->set_window_title_element(fmt_result);
 }
 
-void EmulatorWindow::load_replay() {
+std::optional<std::string> EmulatorWindow::pick_replay() {
     // Get all current replays
     std::vector<std::string> list;
     auto replays = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays);
@@ -418,27 +466,32 @@ void EmulatorWindow::load_replay() {
 
     if(list.empty()) {
         DISPLAY_ERROR_DIALOG("No replays found", "You do not have any replays for %s", this->current_rom_name.c_str());
-        return;
+        return {};
     }
 
-    auto selection = choose_from_list("Load replay", "Choose a replay to load:", list, this->current_save_name.c_str());
+    return choose_from_list("Load replay", "Choose a replay to load:", list, this->current_save_name.c_str());
+}
+
+std::optional<std::vector<std::byte>> EmulatorWindow::read_replay_file(const char *replay) {
+    auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, replay);
+    auto file = read_file(path);
+    if(!file) {
+        DISPLAY_ERROR_DIALOG("Failed to open replay", "Couldn't open %s", replay);
+    }
+    return file;
+}
+
+void EmulatorWindow::load_replay() {
+    auto selection = this->pick_replay();
     if(!selection) {
         return;
     }
-
-    auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, selection->c_str());
-    auto file = read_file(path);
+    auto file = this->read_replay_file(selection->c_str());
     if(!file) {
-        DISPLAY_ERROR_DIALOG("Failed to open replay", "Couldn't open %s", selection->c_str());
         return;
     }
 
-    // Save what we have
-    this->save_sram();
-
-    // Reload the emulator
-    this->current_save_name = RESERVED_REPLAY_PLAYBACK_SAVE_NAME;
-    this->reload_current_rom_data();
+    this->set_up_replay_playback_environment();
     this->gameboy->start_replay_playback(*file);
     this->currently_playing_back_recording = true;
 

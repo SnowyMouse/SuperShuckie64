@@ -262,37 +262,44 @@ void GameboyContext::on_vblank(GB_gameboy_t *gb, GB_vblank_type_t type) noexcept
 
 void GameboyContext::run_thread() noexcept {
     this->execute_lock.lock();
+    std::size_t i = 0;
 
     while(true) {
-        bool turbo_enabled_this_run = this->target_frame_turbo != std::nullopt;
-        if(turbo_enabled_this_run) {
-            GB_set_turbo_mode(this->gameboy.get(), true, true);
+        bool end_of_playback = this->is_playing_back_inner() && this->current_playback_offset == this->playback_command_count;
+        bool is_paused = end_of_playback || this->paused;
+
+        if(end_of_playback && this->replay_to_append) {
+            this->current_playback = {};
+            this->keyframe_index = 0x80000000 | static_cast<std::uint32_t>(this->replay_keyframes.size());
+            this->replay_recorder = std::make_unique<ReplayWriter>(this->replay_to_append->data(), this->replay_to_append->size());
+            this->replay_to_append = {};
         }
 
-        GB_run(this->gameboy.get());
-
-        if(this->vblank_performed) {
-            this->on_vblank();
-        }
-
-        if(turbo_enabled_this_run) {
-            GB_set_turbo_mode(this->gameboy.get(), false, true);
-            if(*this->target_frame_turbo <= this->current_frame_index) {
-                this->target_frame_turbo = {};
+        if(!end_of_playback) {
+            bool turbo_enabled_this_run = this->target_frame_turbo != std::nullopt;
+            if(turbo_enabled_this_run) {
+                GB_set_turbo_mode(this->gameboy.get(), true, true);
+            }
+            GB_run(this->gameboy.get());
+            if(this->vblank_performed) {
+                this->on_vblank();
+            }
+            if(turbo_enabled_this_run) {
+                GB_set_turbo_mode(this->gameboy.get(), false, true);
+                if(*this->target_frame_turbo <= this->current_frame_index) {
+                    this->target_frame_turbo = {};
+                }
             }
         }
 
         // Check if something needs something.
-        do {
-            this->execute_lock.unlock();
-            this->execute_wait.lock();
-            this->execute_lock.lock();
-            this->execute_wait.unlock();
-            if(this->stop_thread) {
-                goto end;
-            }
+        this->execute_lock.unlock();
+        this->execute_wait.lock();
+        this->execute_lock.lock();
+        this->execute_wait.unlock();
+        if(this->stop_thread) {
+            goto end;
         }
-        while(this->paused);
     }
 
     end:
@@ -401,7 +408,7 @@ bool GameboyContext::is_playing_back_inner() const noexcept {
 
 bool GameboyContext::is_recording() noexcept {
     this->acquire_context();
-    bool is_recording = this->is_recording_inner();
+    bool is_recording = this->is_recording_inner() || this->replay_to_append;
     this->unlock_context();
     return is_recording;
 }
@@ -413,17 +420,7 @@ bool GameboyContext::is_playing_back() noexcept {
     return is_playing_back;
 }
 
-void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay) {
-    auto replay_reader = ReplayReader(replay.data(), replay.size());
-
-    bool error;
-    auto collection = replay_reader.collect(error);
-    std::size_t collection_count = collection->len();
-    if(!collection || collection->len() == 0) {
-        return;
-    }
-
-    this->acquire_context();
+void GameboyContext::start_replay_playback_inner(ReplayReaderItemCollection &&collection) {
     if(this->is_recording_inner()) {
         std::fprintf(stderr, "Can't record and playback at the same time!\n");
         std::terminate();
@@ -431,6 +428,7 @@ void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay)
 
     this->current_playback = std::move(collection);
     this->current_playback_offset = 0;
+    this->playback_command_count = this->current_playback->len();
     this->current_frame_index = 0;
     this->target_frame_turbo = {};
 
@@ -445,7 +443,7 @@ void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay)
     std::uint64_t frame_index = 0;
     std::uint8_t current_input = 0;
     std::uint16_t current_speed = SPEED_MULTIPLIER_FACTOR;
-    for(std::size_t i = 0; i < collection_count; i++) {
+    for(std::size_t i = 0; i < this->playback_command_count; i++) {
         auto item = collection_moved[i];
         frame_index += item.get_delay();
 
@@ -474,13 +472,37 @@ void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay)
     this->total_playback_frames = frame_index;
 
     this->play_latest_packet();
+}
+
+static std::optional<ReplayReaderItemCollection> make_replay_reader(const std::vector<std::byte> &replay) {
+    auto replay_reader = ReplayReader(replay.data(), replay.size());
+    bool error;
+    auto collection = replay_reader.collect(error);
+    if(error) {
+        return {};
+    }
+    return collection;
+}
+
+void GameboyContext::start_replay_playback(const std::vector<std::byte> &replay) {
+    auto collection = make_replay_reader(replay);
+    if(!collection) {
+        return;
+    }
+
+    this->acquire_context();
+    this->start_replay_playback_inner(std::move(*collection));
     this->unlock_context();
 }
 
 void GameboyContext::skip_to_frame(std::uint64_t frame) noexcept {
     this->acquire_context();
+    this->skip_to_frame_inner(frame);
+    this->unlock_context();
+}
+
+void GameboyContext::skip_to_frame_inner(std::uint64_t frame) noexcept {
     if(!this->is_playing_back_inner()) {
-        this->unlock_context();
         return;
     }
 
@@ -524,14 +546,13 @@ void GameboyContext::skip_to_frame(std::uint64_t frame) noexcept {
 
     // We'll now need to turbo to this frame.
     this->target_frame_turbo = frame;
-
-    this->unlock_context();
 }
 
 void GameboyContext::stop_replay_playback() {
     this->acquire_context();
     this->current_playback = {};
     this->target_frame_turbo = {};
+    this->replay_to_append = {};
     this->unlock_context();
 }
 
@@ -554,12 +575,12 @@ void GameboyContext::play_latest_packet() {
         return;
     }
 
-    auto &collection = *this->current_playback;
-    auto len = collection.len();
-    if(this->current_playback_offset >= len) {
+    if(this->current_playback_offset >= this->playback_command_count) {
+        std::fprintf(stderr, "trying to play a packet at or after the end\n");
         std::terminate();
     }
 
+    auto &collection = *this->current_playback;
     auto latest = collection[this->current_playback_offset];
     while(true) {
         switch(latest.get_packet_type()) {
@@ -609,8 +630,7 @@ void GameboyContext::play_latest_packet() {
         }
 
         this->current_playback_offset++;
-        if(this->current_playback_offset >= len) {
-            this->current_playback = {};
+        if(this->current_playback_offset == this->playback_command_count) {
             return;
         }
         latest = collection[this->current_playback_offset];
@@ -624,5 +644,18 @@ void GameboyContext::set_ignore_speed_changes_on_replay(bool ignore_speed_change
     // we acquire context here for timing reasons rather than for data races
     this->acquire_context();
     this->ignore_replay_speed_changes = ignore_speed_changes;
+    this->unlock_context();
+}
+
+void GameboyContext::start_recording_from_end_of_replay(const std::vector<std::byte> &replay) {
+    auto collection = make_replay_reader(replay);
+    if(!collection) {
+        return;
+    }
+
+    this->acquire_context();
+    this->replay_to_append = replay;
+    this->start_replay_playback_inner(std::move(*collection));
+    this->skip_to_frame_inner(this->total_playback_frames);
     this->unlock_context();
 }

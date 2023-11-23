@@ -114,7 +114,7 @@ impl TryFrom<u8> for PacketType {
 /// Defines a packet
 pub trait Packet: Any {
     /// Get the packet type enum
-    fn get_packet_type() -> PacketType where Self: Sized;
+    fn get_packet_type(&self) -> PacketType;
 
     /// Write the packet out to the given stream.
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> where Self: Sized;
@@ -132,7 +132,7 @@ pub trait Packet: Any {
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct NoOp {}
 impl Packet for NoOp {
-    fn get_packet_type() -> PacketType { PacketType::NoOp }
+    fn get_packet_type(&self) -> PacketType { PacketType::NoOp }
     fn write<W: Write>(&self, _: &mut W) -> LoadResult<()> { Ok(()) }
     fn read<R: Read>(_: &mut R) -> LoadResult<Self> { Ok(Self {}) }
     fn as_any(&self) -> &dyn Any { self }
@@ -144,7 +144,7 @@ pub struct LoadSRAM {
     pub data: Vec<u8>
 }
 impl Packet for LoadSRAM {
-    fn get_packet_type() -> PacketType { PacketType::LoadSRAM }
+    fn get_packet_type(&self) -> PacketType { PacketType::LoadSRAM }
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
         write_data!(&self.data, w, u64)
     }
@@ -164,7 +164,7 @@ pub struct Bookmark {
     pub name: [u8; 32]
 }
 impl Packet for Bookmark {
-    fn get_packet_type() -> PacketType { PacketType::Bookmark }
+    fn get_packet_type(&self) -> PacketType { PacketType::Bookmark }
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
         io_to_load_err!(w.write_all(&self.name))?;
         Ok(())
@@ -188,7 +188,7 @@ pub struct CustomData {
     pub data: Vec<u8>
 }
 impl Packet for CustomData {
-    fn get_packet_type() -> PacketType { PacketType::CustomData }
+    fn get_packet_type(&self) -> PacketType { PacketType::CustomData }
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
         io_to_load_err!(w.write_all(&self.name))?;
         write_data!(&self.data, w, u64)?;
@@ -217,7 +217,7 @@ pub struct ChangeGameSpeed {
     pub speed: u16
 }
 impl Packet for ChangeGameSpeed {
-    fn get_packet_type() -> PacketType { PacketType::ChangeGameSpeed }
+    fn get_packet_type(&self) -> PacketType { PacketType::ChangeGameSpeed }
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
         io_to_load_err!(w.write_all(&self.speed.to_be_bytes()))?;
         Ok(())
@@ -254,7 +254,7 @@ macro_rules! make_set_input_int {
             pub input: $width
         }
         impl Packet for $name {
-            fn get_packet_type() -> PacketType { PacketType::$name }
+            fn get_packet_type(&self) -> PacketType { PacketType::$name }
             fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
                 io_to_load_err!(w.write_all(&self.input.to_be_bytes()))?;
                 Ok(())
@@ -287,7 +287,7 @@ macro_rules! make_set_input_data {
             pub input: Vec<u8>
         }
         impl Packet for $name {
-            fn get_packet_type() -> PacketType { PacketType::$name }
+            fn get_packet_type(&self) -> PacketType { PacketType::$name }
             fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
                 write_data!(&self.input, w, $length_width)?;
                 Ok(())
@@ -320,7 +320,7 @@ pub struct AddSaveState {
     pub index: u32
 }
 impl Packet for AddSaveState {
-    fn get_packet_type() -> PacketType { PacketType::AddSaveState }
+    fn get_packet_type(&self) -> PacketType { PacketType::AddSaveState }
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
         write_data!(&self.data, w, u64)?;
         io_to_load_err!(w.write_all(&self.index.to_be_bytes()))
@@ -342,7 +342,7 @@ pub struct LoadSaveState {
     pub index: u32
 }
 impl Packet for LoadSaveState {
-    fn get_packet_type() -> PacketType { PacketType::LoadSaveState }
+    fn get_packet_type(&self) -> PacketType { PacketType::LoadSaveState }
     fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
         io_to_load_err!(w.write_all(&self.index.to_be_bytes()))
     }
@@ -363,7 +363,7 @@ macro_rules! make_write_byte_to_addr {
             pub byte: u8
         }
         impl Packet for $name {
-            fn get_packet_type() -> PacketType { PacketType::$name }
+            fn get_packet_type(&self) -> PacketType { PacketType::$name }
             fn write<W: Write>(&self, w: &mut W) -> LoadResult<()> {
                 io_to_load_err!(w.write_all(&self.$addr_name.to_be_bytes()))?;
                 io_to_load_err!(w.write_all(&self.byte.to_be_bytes()))?;
@@ -389,7 +389,7 @@ make_write_byte_to_addr!(WriteROMByteOffset64, u64, offset, "Write a byte into R
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct ResetSystem {}
 impl Packet for ResetSystem {
-    fn get_packet_type() -> PacketType { PacketType::ResetSystem }
+    fn get_packet_type(&self) -> PacketType { PacketType::ResetSystem }
     fn write<W: Write>(&self, _: &mut W) -> LoadResult<()> {
         Ok(())
     }

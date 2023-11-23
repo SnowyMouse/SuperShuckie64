@@ -40,6 +40,33 @@
 
 extern crate sha256;
 
+macro_rules! do_to_packet {
+    ($packet: expr, $var: tt, $fn: block ) => {{
+        match $packet.get_packet_type() {
+            PacketType::NoOp => { let $var = $packet.as_any().downcast_ref::<NoOp>().unwrap(); $fn },
+            PacketType::CustomData => { let $var = $packet.as_any().downcast_ref::<CustomData>().unwrap(); $fn },
+            PacketType::LoadSRAM => { let $var = $packet.as_any().downcast_ref::<LoadSRAM>().unwrap(); $fn },
+            PacketType::ChangeGameSpeed => { let $var = $packet.as_any().downcast_ref::<ChangeGameSpeed>().unwrap(); $fn },
+            PacketType::Bookmark => { let $var = $packet.as_any().downcast_ref::<Bookmark>().unwrap(); $fn },
+            PacketType::SetInput8 => { let $var = $packet.as_any().downcast_ref::<SetInput8>().unwrap(); $fn },
+            PacketType::SetInput16 => { let $var = $packet.as_any().downcast_ref::<SetInput16>().unwrap(); $fn },
+            PacketType::SetInput32 => { let $var = $packet.as_any().downcast_ref::<SetInput32>().unwrap(); $fn },
+            PacketType::SetInput64 => { let $var = $packet.as_any().downcast_ref::<SetInput64>().unwrap(); $fn },
+            PacketType::SetInputData8 => { let $var = $packet.as_any().downcast_ref::<SetInputData8>().unwrap(); $fn },
+            PacketType::SetInputData16 => { let $var = $packet.as_any().downcast_ref::<SetInputData16>().unwrap(); $fn },
+            PacketType::SetInputData32 => { let $var = $packet.as_any().downcast_ref::<SetInputData32>().unwrap(); $fn },
+            PacketType::SetInputData64 => { let $var = $packet.as_any().downcast_ref::<SetInputData64>().unwrap(); $fn },
+            PacketType::AddSaveState => { let $var = $packet.as_any().downcast_ref::<AddSaveState>().unwrap(); $fn },
+            PacketType::LoadSaveState => { let $var = $packet.as_any().downcast_ref::<LoadSaveState>().unwrap(); $fn },
+            PacketType::WriteRAMByteAddr32 => { let $var = $packet.as_any().downcast_ref::<WriteRAMByteAddr32>().unwrap(); $fn },
+            PacketType::WriteRAMByteAddr64 => { let $var = $packet.as_any().downcast_ref::<WriteRAMByteAddr64>().unwrap(); $fn },
+            PacketType::WriteROMByteOffset32 => { let $var = $packet.as_any().downcast_ref::<WriteROMByteOffset32>().unwrap(); $fn },
+            PacketType::WriteROMByteOffset64 => { let $var = $packet.as_any().downcast_ref::<WriteROMByteOffset64>().unwrap(); $fn },
+            PacketType::ResetSystem => { let $var = $packet.as_any().downcast_ref::<ResetSystem>().unwrap(); $fn },
+        }
+    }};
+}
+
 pub mod header;
 pub mod packet;
 pub mod reader;

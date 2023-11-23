@@ -1,7 +1,31 @@
+use replay_recorder::header::ReplayHeader;
 use replay_recorder::writer::ReplayWriter;
 use replay_recorder::packet::*;
 
 use std::ffi::CStr;
+
+use crate::reader::ReplayReaderItemCollection;
+
+unsafe fn create_header(
+    emulator_info: *const i8,
+    rom_name: *const i8,
+    rom_data: *const u8,
+    rom_data_size: usize,
+    bios_data: *const u8,
+    bios_data_size: usize
+) -> Option<ReplayHeader> {
+    let rom_name = CStr::from_ptr(rom_name).to_string_lossy();
+    let emulator_info = CStr::from_ptr(emulator_info).to_string_lossy();
+    let rom_data = to_slice!(rom_data, rom_data_size);
+    let bios_data = to_slice!(bios_data, bios_data_size);
+
+    replay_recorder::header::ReplayHeader::new_from_strs(
+        emulator_info.as_ref(),
+        rom_name.as_ref(),
+        rom_data,
+        bios_data
+    )
+}
 
 /// Pointer must be freed with RR_ReplayWriter_free
 #[no_mangle]
@@ -13,18 +37,7 @@ pub unsafe extern "C" fn RR_ReplayWriter_new(
     bios_data: *const u8,
     bios_data_size: usize
 ) -> *mut ReplayWriter {
-
-    let rom_name = CStr::from_ptr(rom_name).to_string_lossy();
-    let emulator_info = CStr::from_ptr(emulator_info).to_string_lossy();
-    let rom_data = to_slice!(rom_data, rom_data_size);
-    let bios_data = to_slice!(bios_data, bios_data_size);
-
-    let header = replay_recorder::header::ReplayHeader::new_from_strs(
-        emulator_info.as_ref(),
-        rom_name.as_ref(),
-        rom_data,
-        bios_data
-    );
+    let header = create_header(emulator_info, rom_name, rom_data, rom_data_size, bios_data, bios_data_size);
 
     if let Some(header) = header {
         Box::into_raw(Box::new(ReplayWriter::new(header)))
@@ -33,6 +46,46 @@ pub unsafe extern "C" fn RR_ReplayWriter_new(
         std::ptr::null_mut()
     }
 }
+
+/// Pointer must be freed with RR_ReplayWriter_free
+#[no_mangle]
+pub unsafe extern "C" fn RR_ReplayWriter_new_from_collection(
+    emulator_info: *const i8,
+    rom_name: *const i8,
+    rom_data: *const u8,
+    rom_data_size: usize,
+    bios_data: *const u8,
+    bios_data_size: usize,
+    collection: &mut ReplayReaderItemCollection,
+    from: usize,
+    to: usize
+) -> *mut ReplayWriter {
+    let header = create_header(emulator_info, rom_name, rom_data, rom_data_size, bios_data, bios_data_size);
+
+    if let Some(header) = header {
+        Box::into_raw(Box::new(ReplayWriter::from_reader_items(&collection[from..to], header)))
+    }
+    else {
+        std::ptr::null_mut()
+    }
+}
+
+/// Pointer must be freed with RR_ReplayWriter_free
+#[no_mangle]
+pub unsafe extern "C" fn RR_ReplayWriter_new_from_stream(
+    stream: *const u8,
+    stream_size: usize,
+) -> *mut ReplayWriter {
+    let result = ReplayWriter::from_stream(std::slice::from_raw_parts(stream, stream_size));
+
+    if let Ok(result) = result {
+        Box::into_raw(Box::new(result))
+    }
+    else {
+        std::ptr::null_mut()
+    }
+}
+
 
 /// Frees a ReplayWriter; no-op if null
 #[no_mangle]

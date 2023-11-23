@@ -1,6 +1,7 @@
 //! Functionality for generating a stream of a replay.
 
 use crate::header::*;
+use crate::reader::*;
 use crate::error::*;
 use crate::packet::*;
 
@@ -36,6 +37,23 @@ impl ReplayWriter {
         })
     }
 
+    /// Initialize a new ReplayWriter structure from a slice of packets.
+    pub fn from_reader_items(items: &[ReplayReaderItem], header: ReplayHeader) -> Self {
+        let mut stream = Self {
+            current_stream: header.as_bytes().to_vec(),
+            header,
+            current_delay: 0
+        };
+
+        for i in items {
+            do_to_packet!(i.get_packet(), packet, {
+                stream.write_packet(packet);
+            });
+        }
+
+        stream
+    }
+
     /// Get the stream data in its current state.
     pub fn get_stream(&self) -> &[u8] {
         &self.current_stream
@@ -61,7 +79,7 @@ impl ReplayWriter {
         self.current_stream.push(self.current_delay);
         self.current_delay = 0;
 
-        self.current_stream.push(P::get_packet_type() as u8);
+        self.current_stream.push(packet.get_packet_type() as u8);
         packet.write(&mut self.current_stream).unwrap();
     }
 }
