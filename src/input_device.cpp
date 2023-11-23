@@ -31,7 +31,7 @@ void ControllerInputDevice::restore_default_settings() noexcept {
     this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT] = SettingsValues::SettingsValues_Right;
     this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP] = SettingsValues::SettingsValues_Up;
     this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN] = SettingsValues::SettingsValues_Down;
-    this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_GUIDE] = SettingsValues::SettingsValues_ResetConsole;
+    this->settings_button.input[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_GUIDE] = SettingsValues::SettingsValues_Pause;
 
     this->settings_button.input_rapid_fire[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER] = SettingsValues::SettingsValues_B;
     this->settings_button.input_rapid_fire[SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER] = SettingsValues::SettingsValues_A;
@@ -81,6 +81,10 @@ static void apply_button_logic(InputState &response, std::uint8_t input, std::ui
     switch(input) {
         case SettingsValues::SettingsValues_ResetConsole: {
             response.reset_console = on;
+            return;
+        }
+        case SettingsValues::SettingsValues_Pause: {
+            response.pause = on;
             return;
         }
         default: break;
@@ -187,6 +191,8 @@ const char *SuperShuckie64::settings_value_to_name(SettingsValues value) noexcep
 
         case SettingsValues_ResetConsole:
             return "Reset console";
+        case SettingsValues_Pause:
+            return "Pause console";
     }
 
     return nullptr;

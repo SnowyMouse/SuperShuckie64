@@ -275,7 +275,7 @@ void GameboyContext::run_thread() noexcept {
             this->replay_to_append = {};
         }
 
-        if(!end_of_playback) {
+        if(!is_paused) {
             bool turbo_enabled_this_run = this->target_frame_turbo != std::nullopt;
             if(turbo_enabled_this_run) {
                 GB_set_turbo_mode(this->gameboy.get(), true, true);
@@ -290,6 +290,9 @@ void GameboyContext::run_thread() noexcept {
                     this->target_frame_turbo = {};
                 }
             }
+        }
+        else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5)); // prevent busy-waiting
         }
 
         // Check if something needs something.

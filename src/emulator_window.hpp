@@ -70,6 +70,10 @@ namespace SuperShuckie64 {
 
         std::optional<std::chrono::steady_clock::time_point> revert_window_title_timer;
 
+        bool manually_paused = false;
+        QAction *manually_pause_option;
+        void refresh_pause_state() noexcept;
+
         QMenu *gameplay_menu;
         QMenu *replays_menu;
         InputState input_state = {};
@@ -79,7 +83,10 @@ namespace SuperShuckie64 {
         std::vector<std::uint32_t> pixel_buffer;
         PixelBufferView *pixel_buffer_view;
         QGraphicsScene *pixel_buffer_scene = nullptr;
+
+        // Used to make sure we only do this once when using it from a controller
         bool is_resetting = false;
+        bool is_pausing = false;
 
         std::unordered_map<SDL_JoystickID, std::shared_ptr<ControllerInputDevice>> input_devices;
 
@@ -125,6 +132,7 @@ namespace SuperShuckie64 {
         std::optional<std::string> pick_replay();
         std::optional<std::vector<std::byte>> read_replay_file(const char *replay);
         void set_up_replay_playback_environment();
+        void toggle_pause();
 
 
     private slots:
@@ -148,6 +156,7 @@ namespace SuperShuckie64 {
         void skip_forward();
         void skip_backward();
         void continue_replay_recording();
+        void update_manually_paused();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

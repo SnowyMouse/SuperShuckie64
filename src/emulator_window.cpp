@@ -260,6 +260,10 @@ void EmulatorWindow::revert_window_title() noexcept {
     if(this->currently_playing_back_recording) {
         this->setWindowTitle(this->windowTitle() + " [PLAYING REPLAY]");
     }
+
+    if(this->manually_paused) {
+        this->setWindowTitle(this->windowTitle() + " [PAUSED]");
+    }
 }
 
 void EmulatorWindow::set_window_title_element(const char *what) noexcept {
@@ -308,8 +312,13 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
 }
 
 void EmulatorWindow::update_input_state_on_gameboy() noexcept {
+    if(this->input_state.pause && !this->is_pausing) {
+        this->toggle_pause();
+    }
+    this->is_pausing = this->input_state.pause;
+
     if(!this->currently_playing_back_recording) {
-        if(this->input_state.reset_console) {
+        if(this->input_state.reset_console && !this->is_resetting) {
             this->perform_reset();
         }
         this->is_resetting = this->input_state.reset_console;
@@ -343,7 +352,7 @@ void EmulatorWindow::handle_loaded_rom() noexcept {
     this->set_window_title_element(rom_loaded ? "ROM loaded successfully!" : "ROM unloaded successfully!");
     this->gameplay_menu->setEnabled(rom_loaded);
     this->replays_menu->setEnabled(rom_loaded);
-    this->gameboy->set_paused(false);
+    this->refresh_pause_state();
 }
 
 void EmulatorWindow::add_device(SDL_GameController *controller) noexcept {
@@ -439,4 +448,13 @@ bool EmulatorWindow::ignore_recording_speed_changes_setting(int new_setting) {
         setting.setValue("replay/disable_speed_changes_when_recording", static_cast<bool>(new_setting));
     }
     return setting.value("replay/disable_speed_changes_when_recording", 0).toBool();
+}
+
+void EmulatorWindow::refresh_pause_state() noexcept {
+    this->gameboy->set_paused(this->manually_paused);
+}
+
+void EmulatorWindow::toggle_pause() {
+    this->manually_pause_option->setChecked(!this->manually_paused);
+    this->update_manually_paused();
 }

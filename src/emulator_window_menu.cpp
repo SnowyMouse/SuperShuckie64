@@ -71,6 +71,11 @@ void EmulatorWindow::set_up_menu() {
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Load game...", this->gameplay_menu, load_game(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_O));
     this->gameplay_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Reset console", this->gameplay_menu, perform_reset());
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT_THEN("Pause", this->gameplay_menu, update_manually_paused(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_P), \
+        a->setCheckable(true); \
+        a->setChecked(false); \
+        this->manually_pause_option = a; \
+    );
 
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->replays_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->replays_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
@@ -303,7 +308,7 @@ void EmulatorWindow::load_game() {
 void EmulatorWindow::switch_sram(const std::string &new_sram) {
     this->current_save_name = new_sram;
     this->reload_current_rom_data();
-    this->gameboy->set_paused(false);
+    this->refresh_pause_state();
     this->set_window_title_element("SRAM switched successfully!");
 }
 
@@ -498,7 +503,7 @@ void EmulatorWindow::load_replay() {
     char fmt[600];
     std::snprintf(fmt, sizeof(fmt), "Loaded replay %s", selection->c_str());
     this->set_window_title_element(fmt);
-    this->gameboy->set_paused(false);
+    this->refresh_pause_state();
 }
 
 void EmulatorWindow::stop_replay() {
@@ -559,9 +564,6 @@ void EmulatorWindow::open_controls_settings_dialog() {
 }
 
 void EmulatorWindow::perform_reset() {
-    if(this->is_resetting) {
-        return;
-    }
     this->gameboy->reset();
 }
 
@@ -592,4 +594,10 @@ void EmulatorWindow::skip_backward() {
     }
     auto frame = this->gameboy->get_current_frame_index();
     this->gameboy->skip_to_frame(frame - std::min(frame, static_cast<std::size_t>(600)));
+}
+
+void EmulatorWindow::update_manually_paused() {
+    this->manually_paused = this->manually_pause_option->isChecked();
+    this->revert_window_title();
+    this->refresh_pause_state();
 }
