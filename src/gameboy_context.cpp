@@ -353,7 +353,7 @@ void GameboyContext::start_replay_recording(const char *rom_name) {
     this->acquire_context();
 
     if(this->is_playing_back_inner()) {
-        std::fprintf(stderr, "Can't record and playback at the same time!\n");
+        std::fputs("Can't record and playback at the same time!", stderr);
         std::terminate();
     }
 
@@ -386,13 +386,13 @@ std::uint32_t GameboyContext::insert_savestate_in_replay() {
     return keyframe_added;
 }
 
-std::vector<std::byte> GameboyContext::get_current_replay_recording_data() {
+std::vector<std::byte> GameboyContext::get_current_replay_recording_data(std::size_t offset) {
     if(!this->replay_recorder) {
         std::fputs("Can't get current replay recording data if no recorder is present!", stderr);
-        std::terminate();
+        return {};
     }
 
-    return this->replay_recorder->get_stream();
+    return this->replay_recorder->get_stream(offset);
 }
 
 void GameboyContext::stop_replay_recording() {

@@ -212,11 +212,11 @@ public:
     ReplayWriter(const std::byte *stream, std::size_t length) noexcept :
         writer(RR_ReplayWriter_new_from_stream(stream, length), RR_ReplayWriter_free) {}
 
-    std::vector<std::byte> get_stream() const noexcept {
+    std::vector<std::byte> get_stream(std::size_t offset = 0) const noexcept {
         std::size_t length;
         const std::byte *data;
         RR_ReplayWriter_get_stream(this->writer.get(), reinterpret_cast<const void **>(&data), &length);
-        return std::vector<std::byte>(data, data + length);
+        return std::vector<std::byte>(data + offset, data + length);
     }
 
     void next_frame() noexcept {

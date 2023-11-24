@@ -376,6 +376,9 @@ bool EmulatorWindow::check_can_start_recording() {
         this->set_window_title_element("Can't start a replay recording - playback in process!");
         return false;
     }
+    if(!this->make_recording_tmp_file()) {
+        return false;
+    }
     return true;
 }
 
@@ -387,6 +390,47 @@ void EmulatorWindow::start_replay_recording() {
     this->gameboy->start_replay_recording(current_rom_name.c_str());
     this->set_window_title_element("Replay started!");
     this->currently_recording = true;
+}
+
+bool EmulatorWindow::make_recording_tmp_file() {
+    this->temporary_file_path = this->assign_recording_file_name("tmp-recording");
+
+    auto path_str = this->temporary_file_path.string();
+    const char *path_cstr = path_str.c_str();
+    this->temporary_file_recording = std::fopen(path_cstr, "wb");
+    this->temporary_file_recording_offset = 0;
+    this->temporary_file_time_since_last_save = std::chrono::steady_clock::now();
+    if(!this->temporary_file_recording) {
+        DISPLAY_ERROR_DIALOG("Failed to create replay", "Could not create replay file %s", path_cstr);
+        return false;
+    }
+    return true;
+}
+
+void EmulatorWindow::update_recording_tmp_file() {
+    if(!this->temporary_file_recording) {
+        return;
+    }
+    auto latest_bytes = this->gameboy->get_current_replay_recording_data(this->temporary_file_recording_offset);
+    if(latest_bytes.empty()) {
+        return;
+    }
+    if(std::fwrite(latest_bytes.data(), latest_bytes.size(), 1, this->temporary_file_recording) != 1) {
+        DISPLAY_ERROR_DIALOG("Failed to create replay", "Could not write to replay file %s", this->temporary_file_path.string().c_str());
+        this->stop_replay_recording();
+        this->close_recording_tmp_file();
+        return;
+    }
+    this->temporary_file_recording_offset += latest_bytes.size();
+    this->temporary_file_time_since_last_save = std::chrono::steady_clock::now();
+}
+
+void EmulatorWindow::close_recording_tmp_file() noexcept {
+    if(!this->temporary_file_recording) {
+        return;
+    }
+    std::fclose(this->temporary_file_recording);
+    this->temporary_file_recording = nullptr;
 }
 
 void EmulatorWindow::continue_replay_recording() {
@@ -418,37 +462,49 @@ void EmulatorWindow::set_up_replay_playback_environment() {
     this->reload_current_rom_data();
 }
 
+std::filesystem::path EmulatorWindow::assign_recording_file_name(const char *prefix) {
+    unsigned int c = 0;
+    while(true) {
+        char fmt[512];
+        std::snprintf(fmt, sizeof(fmt), "%s-%u", prefix, c);
+        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, fmt);
+        if(!std::filesystem::exists(path)) {
+            return path;
+        }
+        c++;
+    }
+}
+
 void EmulatorWindow::stop_replay_recording() {
     if(!this->gameboy->is_recording()) {
         this->set_window_title_element("Can't stop a replay recording - not recording!");
         return;
     }
     this->currently_recording = false;
-    auto current_recording = this->gameboy->get_current_replay_recording_data();
+    this->update_recording_tmp_file();
+    this->close_recording_tmp_file();
     this->gameboy->stop_replay_recording();
 
-    std::filesystem::path path;
+    if(this->temporary_file_recording_offset == 0) {
+        this->set_window_title_element("No replay data to write.");
+        return;
+    }
 
+    std::filesystem::path path;
     if(!this->recording_file) {
-        unsigned int c = 0;
-        while(true) {
-            char fmt[512];
-            std::snprintf(fmt, sizeof(fmt), "%s-%u", current_save_name.c_str(), c);
-            path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, fmt);
-            if(!std::filesystem::exists(path)) {
-                this->recording_file = fmt;
-                break;
-            }
-            c++;
-        }
+        path = this->assign_recording_file_name(current_save_name.c_str());
+        this->recording_file = path.filename().string().c_str();
     }
     else {
         path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, this->recording_file->c_str());
     }
 
+    std::error_code error;
+    std::filesystem::rename(this->temporary_file_path, path, error);
     const char *file = this->recording_file->c_str();
-    if(!write_file(path, current_recording)) {
-        DISPLAY_ERROR_DIALOG("Failed to save replay", "Could not write replay file %s", file);
+
+    if(error) {
+        DISPLAY_ERROR_DIALOG("Failed to save replay", "Could not write replay file %s; however there is a temporary file %s", file, this->temporary_file_path.string().c_str());
         return;
     }
     char fmt_result[600];

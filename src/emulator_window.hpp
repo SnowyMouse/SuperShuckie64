@@ -84,6 +84,17 @@ namespace SuperShuckie64 {
         PixelBufferView *pixel_buffer_view;
         QGraphicsScene *pixel_buffer_scene = nullptr;
 
+        std::filesystem::path temporary_file_path;
+        FILE *temporary_file_recording = nullptr;
+        std::size_t temporary_file_recording_offset = 0;
+        std::chrono::time_point<std::chrono::steady_clock> temporary_file_time_since_last_save;
+        bool make_recording_tmp_file();
+        void update_recording_tmp_file();
+        void close_recording_tmp_file() noexcept;
+
+
+        std::filesystem::path assign_recording_file_name(const char *prefix);
+
         // Used to make sure we only do this once when using it from a controller
         bool is_resetting = false;
         bool is_pausing = false;

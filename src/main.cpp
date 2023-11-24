@@ -132,7 +132,15 @@ static int runapp(int argc, char ** argv) {
             process.waitForFinished();
         }
 
-        return process.exitCode();
+        auto exit_code = process.exitCode();
+
+        if(exit_code != 0) {
+            std::ofstream output;
+            output.open(error, std::ios_base::app);
+            output << "Exited with an unexpected exit code: " << process.exitCode() << " (possibly a crash?)" << std::endl;
+        }
+
+        return exit_code;
     }
 }
 

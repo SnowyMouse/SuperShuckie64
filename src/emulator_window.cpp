@@ -243,6 +243,10 @@ void EmulatorWindow::tick() {
     if(this->revert_window_title_timer != std::nullopt && std::chrono::steady_clock::now() > *this->revert_window_title_timer) {
         this->revert_window_title();
     }
+
+    if(this->temporary_file_recording && (this->temporary_file_time_since_last_save + std::chrono::seconds(15)) < std::chrono::steady_clock::now()) {
+        this->update_recording_tmp_file();
+    }
 }
 
 void EmulatorWindow::revert_window_title() noexcept {
