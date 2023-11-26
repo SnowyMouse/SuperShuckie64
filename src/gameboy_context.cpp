@@ -268,11 +268,16 @@ void GameboyContext::run_thread() noexcept {
         bool end_of_playback = this->is_playing_back_inner() && this->current_playback_offset == this->playback_command_count;
         bool is_paused = end_of_playback || this->paused;
 
-        if(end_of_playback && this->replay_to_append) {
-            this->current_playback = {};
-            this->keyframe_index = 0x80000000 | static_cast<std::uint32_t>(this->replay_keyframes.size());
-            this->replay_recorder = std::make_unique<ReplayWriter>(this->replay_to_append->data(), this->replay_to_append->size());
-            this->replay_to_append = {};
+        if(end_of_playback) {
+            if(this->replay_to_append) {
+                this->current_playback = {};
+                this->keyframe_index = 0x80000000 | static_cast<std::uint32_t>(this->replay_keyframes.size());
+                this->replay_recorder = std::make_unique<ReplayWriter>(this->replay_to_append->data(), this->replay_to_append->size());
+                this->replay_to_append = {};
+            }
+            else if(this->loop_playback) {
+                this->skip_to_frame_inner(0);
+            }
         }
 
         if(!is_paused) {

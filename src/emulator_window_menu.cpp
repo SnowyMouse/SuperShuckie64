@@ -94,6 +94,11 @@ void EmulatorWindow::set_up_menu() {
         a->setChecked(this->ignore_replay_speed_changes_setting()); \
         this->ignore_replay_speed_changes_option = a; \
     );
+    ADD_ACTION_AND_CONNECT_THEN("Loop playback", this->replays_menu, loop_playback(), \
+        a->setCheckable(true); \
+        a->setChecked(this->loop_playback_setting()); \
+        this->loop_playback_option = a; \
+    );
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip forward", this->replays_menu, skip_forward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Period));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Skip backward", this->replays_menu, skip_backward(), QKeyCombination(Qt::ControlModifier, Qt::Key_Comma));
 }
@@ -656,4 +661,10 @@ void EmulatorWindow::update_manually_paused() {
     this->manually_paused = this->manually_pause_option->isChecked();
     this->revert_window_title();
     this->refresh_pause_state();
+}
+
+void EmulatorWindow::loop_playback() {
+    bool looping = this->loop_playback_option->isChecked();
+    this->loop_playback_setting(looping);
+    this->gameboy->set_loop_playback(looping);
 }

@@ -113,6 +113,7 @@ void EmulatorWindow::reload_current_rom_data() {
     this->currently_playing_back_recording = false;
     this->currently_recording = false;
     this->gameboy->set_ignore_speed_changes_on_replay(this->ignore_replay_speed_changes_setting());
+    this->gameboy->set_loop_playback(this->loop_playback_setting());
 
     if(this->current_rom) {
         auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
@@ -452,6 +453,14 @@ bool EmulatorWindow::ignore_recording_speed_changes_setting(int new_setting) {
         setting.setValue("replay/disable_speed_changes_when_recording", static_cast<bool>(new_setting));
     }
     return setting.value("replay/disable_speed_changes_when_recording", 0).toBool();
+}
+
+bool EmulatorWindow::loop_playback_setting(int new_setting) {
+    auto setting = get_settings();
+    if(new_setting == 0 || new_setting == 1) {
+        setting.setValue("replay/loop", static_cast<bool>(new_setting));
+    }
+    return setting.value("replay/loop", 0).toBool();
 }
 
 void EmulatorWindow::refresh_pause_state() noexcept {

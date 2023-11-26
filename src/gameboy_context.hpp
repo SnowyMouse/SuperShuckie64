@@ -117,6 +117,9 @@ namespace SuperShuckie64 {
         bool is_playing_back() noexcept;
         void start_replay_playback(const std::vector<std::byte> &replay);
         void stop_replay_playback();
+        void set_loop_playback(bool should_loop) noexcept {
+            this->loop_playback = should_loop;
+        }
 
         void start_recording_from_end_of_replay(const std::vector<std::byte> &replay);
 
@@ -134,6 +137,7 @@ namespace SuperShuckie64 {
         std::atomic_uint8_t rapid_fire_input = 0;
         std::atomic_bool paused = true;
         std::atomic_bool reset_queued = false;
+        std::atomic_bool loop_playback = false;
 
         bool vblank_performed = false;
         std::uint8_t current_input = 0;

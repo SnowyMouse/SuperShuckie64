@@ -117,6 +117,8 @@ namespace SuperShuckie64 {
         QAction *ignore_replay_speed_changes_option = nullptr;
         bool ignore_recording_speed_changes_setting(int new_setting = -1);
         QAction *ignore_recording_speed_changes_option = nullptr;
+        bool loop_playback_setting(int new_setting = -1);
+        QAction *loop_playback_option = nullptr;
         std::optional<std::string> recording_file;
 
         // WARNING: Does not save SRAM
@@ -164,6 +166,7 @@ namespace SuperShuckie64 {
         void perform_reset();
         void ignore_replay_speed_changes();
         void ignore_recording_speed_changes();
+        void loop_playback();
         void skip_forward();
         void skip_backward();
         void continue_replay_recording();
