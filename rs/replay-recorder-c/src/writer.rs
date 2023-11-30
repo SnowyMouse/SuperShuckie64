@@ -1,4 +1,4 @@
-use replay_recorder::header::ReplayHeader;
+use replay_recorder::header::{ReplayHeader, HEADER_SIZE};
 use replay_recorder::writer::ReplayWriter;
 use replay_recorder::packet::*;
 
@@ -228,3 +228,63 @@ pub unsafe extern "C" fn RR_ReplayWriter_write_ResetSystem(
 ) {
     writer.write_packet(&ResetSystem { });
 }
+
+unsafe fn move_vec_to_heap(
+    stream: Vec<u8>,
+    bytes: &mut *const u8,
+    size: &mut usize
+) -> *mut Vec<u8> {
+    let b = Box::into_raw(Box::new(stream));
+    *bytes = (*b).as_ptr();
+    *size = (*b).len();
+    b
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn RR_ReplayWriter_compress_stream(
+    writer: &mut ReplayWriter,
+    bytes: &mut *const u8,
+    size: &mut usize,
+) -> *mut Vec<u8> {
+    move_vec_to_heap(writer.compress_stream(), bytes, size)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn RR_ReplayWriter_decompress(
+    input_bytes: *const u8,
+    input_size: usize,
+    output_bytes: &mut *const u8,
+    output_size: &mut usize
+) -> *mut Vec<u8> {
+    let input = std::slice::from_raw_parts(input_bytes, input_size);
+    if let Ok(n) = ReplayWriter::decompress_stream(input) {
+        return move_vec_to_heap(n, output_bytes, output_size)
+    }
+    return std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn RR_ReplayWriter_stream_is_compressed(
+    input_bytes: *const u8,
+    input_size: usize
+) -> bool {
+    if input_size < HEADER_SIZE {
+        return false
+    }
+
+    let input = std::slice::from_raw_parts(input_bytes, input_size);
+    match ReplayHeader::from_stream(&mut std::io::Cursor::new(input)) {
+        Ok(n) => n.flags.is_compressed,
+        _ => false
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn RR_VecU8_free(
+    stream: *mut Vec<u8>
+) {
+    if stream.is_null() {
+        drop(Box::from_raw(stream));
+    }
+}
+

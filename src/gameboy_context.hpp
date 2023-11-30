@@ -112,6 +112,7 @@ namespace SuperShuckie64 {
         bool is_recording() noexcept;
         void start_replay_recording(const char *rom_name);
         std::vector<std::byte> get_current_replay_recording_data(std::size_t offset = 0);
+        std::vector<std::byte> get_current_replay_recording_data_compressed();
         void stop_replay_recording();
 
         bool is_playing_back() noexcept;

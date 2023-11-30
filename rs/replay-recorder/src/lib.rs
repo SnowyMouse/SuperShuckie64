@@ -39,6 +39,7 @@
 //! This crate has a writer and reader for encoding and decoding replays, respectively.
 
 extern crate sha256;
+extern crate zstd;
 
 macro_rules! do_to_packet {
     ($packet: expr, $var: tt, $fn: block ) => {{

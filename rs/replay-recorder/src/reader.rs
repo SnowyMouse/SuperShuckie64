@@ -16,6 +16,9 @@ impl<R: Read> ReplayReader<R> {
     /// Initialize the reader with the given input stream.
     pub fn new(mut stream: R) -> Result<Self, Error> {
         let header = ReplayHeader::from_stream(&mut stream)?;
+        if header.flags.is_compressed {
+            return Err(Error::NeedsDecompressed)
+        }
         Ok(Self {
             header,
             stream,

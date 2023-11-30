@@ -6,30 +6,33 @@ use super::error::*;
 const MAGIC: u64 = 0x47616D655245433E;
 const VERSION: u64 = 0;
 
-const HEADER_SIZE: usize = 512;
+pub const HEADER_SIZE: usize = 512;
 
 /// Header containing metadata about a replay that can be verified.
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct ReplayHeader {
     /// Emulator-specific info (i.e. name and version). This should be encoded in UTF-8 and padded with 00's.
-    pub emulator_info: [u8;32],
+    pub emulator_info: [u8; 32],
 
     /// Timestamp the replay was recorded (milliseconds since epoch)
     pub timestamp_start: u128,
 
     /// Emulator-specific info. This should be encoded in UTF-8 and padded with 00's.
-    pub rom_name: [u8;32],
+    pub rom_name: [u8; 32],
 
     /// ROM checksum bytes (SHA-256)
-    pub rom_checksum: [u8;32],
+    pub rom_checksum: [u8; 32],
 
     /// BIOS checksum bytes (SHA-256)
-    pub bios_checksum: [u8;32],
+    pub bios_checksum: [u8; 32],
+
+    /// Other flags
+    pub flags: ReplayHeaderFlags
 }
 
 impl ReplayHeader {
     /// Instantiate from the given data, returning `None` if the strings are too large.
-    /// 
+    ///
     /// `rom_data` and `bios_data` will be checksum'd using SHA-256.
     pub fn new_from_strs(emulator_info: &str, rom_name: &str, rom_data: &[u8], bios_data: &[u8]) -> Option<Self> {
         let mut emulator_info = emulator_info.as_bytes().to_owned();
@@ -43,15 +46,15 @@ impl ReplayHeader {
         rom_name.resize(32, 0);
 
         Some(Self::new_from_data(
-            emulator_info.as_slice().try_into().unwrap(), 
-            rom_name.as_slice().try_into().unwrap(), 
-            rom_data, 
+            emulator_info.as_slice().try_into().unwrap(),
+            rom_name.as_slice().try_into().unwrap(),
+            rom_data,
             bios_data
         ))
     }
 
     /// Instantiate from the given data.
-    /// 
+    ///
     /// `rom_data` and `bios_data` will be checksum'd using SHA-256.
     pub fn new_from_data(emulator_info: &[u8; 32], rom_name: &[u8; 32], rom_data: &[u8], bios_data: &[u8]) -> Self {
         ReplayHeader {
@@ -59,7 +62,8 @@ impl ReplayHeader {
             rom_name: rom_name.to_owned(),
             timestamp_start: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis(),
             rom_checksum: checksum(rom_data),
-            bios_checksum: checksum(bios_data)
+            bios_checksum: checksum(bios_data),
+            flags: ReplayHeaderFlags::default()
         }
     }
 
@@ -96,12 +100,17 @@ impl ReplayHeader {
         byte_reader.read_exact(&mut rom_checksum).unwrap();
         byte_reader.read_exact(&mut bios_checksum).unwrap();
 
+        let mut flags = [0u8; 4];
+        byte_reader.read_exact(&mut flags).unwrap();
+        let flags = ReplayHeaderFlags::from_bytes(&flags);
+
         Ok(Self {
             emulator_info,
             timestamp_start: u128::from_be_bytes(timestamp_bytes),
             rom_checksum,
             bios_checksum,
-            rom_name
+            rom_name,
+            flags
         })
     }
 
@@ -117,6 +126,7 @@ impl ReplayHeader {
         cursor.write_all(&self.emulator_info).unwrap();
         cursor.write_all(&self.rom_checksum).unwrap();
         cursor.write_all(&self.bios_checksum).unwrap();
+        cursor.write_all(&self.flags.into_bytes()).unwrap();
 
         new_header
     }
@@ -154,4 +164,51 @@ fn checksum(what: &[u8]) -> [u8;32] {
     }
 
     result
+}
+
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
+pub struct ReplayHeaderFlags {
+    /// If true, it's compressed!
+    pub is_compressed: bool
+}
+
+impl ReplayHeaderFlags {
+    pub fn from_bytes(bytes: &[u8; 4]) -> Self {
+        let mut offset = 0usize;
+        let mut bit_shift = 0u8;
+        let mut read_next_flag = || -> bool {
+            let flag = bytes[offset] >> bit_shift;
+            bit_shift += 1;
+            if bit_shift == 8 {
+                bit_shift = 0;
+                offset += 1;
+            }
+            (flag & 1) != 0
+        };
+
+        let is_compressed = read_next_flag();
+
+        Self {
+            is_compressed
+        }
+    }
+
+    pub fn into_bytes(&self) -> [u8; 4] {
+        let mut offset = 0usize;
+        let mut bit_shift = 0u8;
+        let mut bytes = [0u8; 4];
+        let mut write_next_flag = |flag: bool| {
+            let flag_to_write = (flag as u8) << bit_shift;
+            bytes[offset] |= flag_to_write;
+            bit_shift += 1;
+            if bit_shift == 8 {
+                bit_shift = 0;
+                offset += 1;
+            }
+        };
+
+        write_next_flag(self.is_compressed);
+
+        bytes
+    }
 }

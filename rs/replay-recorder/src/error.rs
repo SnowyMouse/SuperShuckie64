@@ -4,7 +4,8 @@
 #[derive(Debug)]
 pub enum Error {
     IO(std::io::Error),
-    ParseError(&'static str)
+    ParseError(&'static str),
+    NeedsDecompressed
 }
 
 /// General result type.

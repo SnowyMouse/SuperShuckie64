@@ -27,14 +27,57 @@ impl ReplayWriter {
 
     /// Initialize a new ReplayWriter structure from an existing stream.
     pub fn from_stream(stream: &[u8]) -> LoadResult<Self> {
-        let mut cursor = Cursor::new(stream);
+        let mut cursor = Cursor::new(&stream);
         let header = ReplayHeader::from_stream(&mut cursor)?;
 
+        if header.flags.is_compressed {
+            return Self::from_stream_vec(Self::decompress_stream(&stream)?);
+        }
+
+        return Self::from_stream_vec(stream.to_vec())
+    }
+
+    /// Initialize a new ReplayWriter structure from an existing stream without reallocation (unless it's compressed!).
+    pub fn from_stream_vec(stream: Vec<u8>) -> LoadResult<Self> {
+        let mut cursor = Cursor::new(&stream);
+        let header = ReplayHeader::from_stream(&mut cursor)?;
+
+        if header.flags.is_compressed {
+            return Self::from_stream_vec(Self::decompress_stream(&stream)?);
+        }
+
         Ok(Self {
-            current_stream: stream.to_vec(),
+            current_stream: stream,
             current_delay: 0,
             header
         })
+    }
+
+    /// Decompress the stream.
+    pub fn decompress_stream(stream: &[u8]) -> LoadResult<Vec<u8>> {
+        let mut cursor = Cursor::new(&stream);
+        let mut header = ReplayHeader::from_stream(&mut cursor)?;
+
+        if header.flags.is_compressed {
+            header.flags.is_compressed = false;
+
+            let header_bytes = header.as_bytes();
+            let capacity = match zstd::bulk::Decompressor::upper_bound(&stream[HEADER_SIZE..]) {
+                Some(n) => n,
+                None => return Err(Error::ParseError("invalid zstd stream")),
+            };
+            let mut result = match zstd::bulk::decompress(&stream[HEADER_SIZE..], capacity) {
+                Ok(n) => n,
+                Err(_) => return Err(Error::ParseError("invalid zstd stream")),
+            };
+
+            let mut final_stream = Vec::with_capacity(result.len() + header_bytes.len());
+            final_stream.extend_from_slice(&header_bytes);
+            final_stream.append(&mut result);
+            return Ok(final_stream)
+        }
+
+        return Ok(stream.to_vec());
     }
 
     /// Initialize a new ReplayWriter structure from a slice of packets.
@@ -59,12 +102,26 @@ impl ReplayWriter {
         &self.current_stream
     }
 
+    /// Compress the stream and return it
+    pub fn compress_stream(&self) -> Vec<u8> {
+        let mut compressed = zstd::bulk::compress(&self.current_stream[HEADER_SIZE..], 8).unwrap();
+        let mut header = self.header;
+
+        header.flags.is_compressed = true;
+        let header_bytes = header.as_bytes();
+
+        let mut result = Vec::with_capacity(header_bytes.len() + compressed.len());
+        result.extend_from_slice(&header_bytes);
+        result.append(&mut compressed);
+        result
+    }
+
     /// Advance the internal frame counter to the next frame.
     ///
     /// You should call this on vblank for the game, itself.
     pub fn next_frame(&mut self) {
         self.current_delay += 1;
-        if self.current_delay == 255 {
+        if self.current_delay == u8::MAX {
             self.write_packet(&NoOp::default());
         }
     }

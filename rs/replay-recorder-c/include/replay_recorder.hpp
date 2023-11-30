@@ -177,7 +177,28 @@ private:
 class ReplayReader {
 public:
     ReplayReader(const void *stream_data, std::size_t stream_data_len) noexcept :
-        reader(RR_ReplayReader_new(stream_data, stream_data_len), RR_ReplayReader_free) {}
+        reader(nullptr, RR_ReplayReader_free),
+        decompressed_stream(nullptr, RR_VecU8_free) {
+
+        if(RR_ReplayWriter_stream_is_compressed(stream_data, stream_data_len)) {
+            const void *output_bytes;
+            std::size_t output_length;
+            this->decompressed_stream = std::unique_ptr<RR_VecU8, void(*)(RR_VecU8 *)>(
+                RR_ReplayWriter_decompress(stream_data, stream_data_len, &output_bytes, &output_length), RR_VecU8_free
+            );
+            if(this->decompressed_stream.get()) {
+                this->reader = std::unique_ptr<RR_ReplayReader, void(*)(RR_ReplayReader *)>(RR_ReplayReader_new(output_bytes, output_length), RR_ReplayReader_free);
+            }
+        }
+        else {
+            this->reader = std::unique_ptr<RR_ReplayReader, void(*)(RR_ReplayReader *)>(RR_ReplayReader_new(stream_data, stream_data_len), RR_ReplayReader_free);
+        }
+
+        if(!this->reader.get()) {
+            std::fputs("Can't read the replay due to an error!", stderr);
+            throw std::exception();
+        }
+    }
 
     std::optional<ReplayReaderItem> next(bool &error) noexcept {
         auto *item_maybe = RR_ReplayReader_next(this->reader.get(), &error);
@@ -197,6 +218,7 @@ public:
 
 private:
     std::unique_ptr<RR_ReplayReader, void(*)(RR_ReplayReader *)> reader;
+    std::unique_ptr<RR_VecU8, void(*)(RR_VecU8 *)> decompressed_stream;
 };
 
 #undef USE_SPANS
@@ -293,6 +315,19 @@ public:
 
     void write_ResetSystem() {
         RR_ReplayWriter_write_ResetSystem(this->writer.get());
+    }
+
+    std::vector<std::byte> compressed() {
+        const std::byte *data;
+        std::size_t size;
+        auto stream = std::unique_ptr<RR_VecU8, void (*)(RR_VecU8 *)>(
+            RR_ReplayWriter_compress_stream(
+                this->writer.get(),
+                reinterpret_cast<const void **>(&data),
+                &size
+            ), RR_VecU8_free
+        );
+        return std::vector<std::byte>(data, data + size);
     }
 
 private:

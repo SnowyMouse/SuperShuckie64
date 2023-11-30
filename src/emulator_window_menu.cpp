@@ -488,6 +488,7 @@ void EmulatorWindow::stop_replay_recording() {
     this->currently_recording = false;
     this->update_recording_tmp_file();
     this->close_recording_tmp_file();
+    auto compressed = this->gameboy->get_current_replay_recording_data_compressed();
     this->gameboy->stop_replay_recording();
 
     if(this->temporary_file_recording_offset == 0) {
@@ -504,14 +505,16 @@ void EmulatorWindow::stop_replay_recording() {
         path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, this->recording_file->c_str());
     }
 
-    std::error_code error;
-    std::filesystem::rename(this->temporary_file_path, path, error);
     const char *file = this->recording_file->c_str();
 
-    if(error) {
+    if(!write_file(path, compressed)) {
         DISPLAY_ERROR_DIALOG("Failed to save replay", "Could not write replay file %s; however there is a temporary file %s", file, this->temporary_file_path.string().c_str());
         return;
     }
+
+    std::error_code error;
+    std::filesystem::remove(this->temporary_file_path, error);
+
     char fmt_result[600];
     std::snprintf(fmt_result, sizeof(fmt_result), "Replay written to %s", file);
     this->set_window_title_element(fmt_result);

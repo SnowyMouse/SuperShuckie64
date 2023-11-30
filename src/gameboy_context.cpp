@@ -484,7 +484,7 @@ void GameboyContext::start_replay_playback_inner(ReplayReaderItemCollection &&co
 
 static std::optional<ReplayReaderItemCollection> make_replay_reader(const std::vector<std::byte> &replay) {
     auto replay_reader = ReplayReader(replay.data(), replay.size());
-    bool error;
+    bool error = false;
     auto collection = replay_reader.collect(error);
     if(error) {
         return {};
@@ -666,4 +666,16 @@ void GameboyContext::start_recording_from_end_of_replay(const std::vector<std::b
     this->start_replay_playback_inner(std::move(*collection));
     this->skip_to_frame_inner(this->total_playback_frames);
     this->unlock_context();
+}
+
+std::vector<std::byte> GameboyContext::get_current_replay_recording_data_compressed() {
+    this->acquire_context();
+    if(!this->is_recording_inner()) {
+        this->unlock_context();
+        std::fputs("Can't get compressed stream if not recording!", stderr);
+        std::terminate();
+    }
+    auto compressed_stream = this->replay_recorder->compressed();
+    this->unlock_context();
+    return compressed_stream;
 }

@@ -69,6 +69,13 @@ void RR_ReplayWriter_write_WriteROMByteOffset32(RR_ReplayWriter *writer, uint8_t
 void RR_ReplayWriter_write_WriteROMByteOffset64(RR_ReplayWriter *writer, uint8_t byte, uint64_t offset);
 void RR_ReplayWriter_write_ResetSystem(RR_ReplayWriter *writer);
 
+// TODO: refactor this into its own compressor!
+typedef struct RR_VecU8 RR_VecU8;
+RR_VecU8 *RR_ReplayWriter_compress_stream(RR_ReplayWriter *writer, const void **bytes, size_t *size);
+RR_VecU8 *RR_ReplayWriter_decompress(const void *input, size_t input_size, const void **output_bytes, size_t *output_size);
+bool RR_ReplayWriter_stream_is_compressed(const void *input, size_t input_size);
+void RR_VecU8_free(RR_VecU8 *stream);
+
 RR_ReplayReader *RR_ReplayReader_new(const void *stream_data, size_t stream_data_len);
 void RR_ReplayReader_free(RR_ReplayReader *reader);
 const RR_ReplayReaderItem *RR_ReplayReader_next(RR_ReplayReader *reader, bool *error);
