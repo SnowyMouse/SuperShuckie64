@@ -456,6 +456,7 @@ void EmulatorWindow::continue_replay_recording() {
     this->gameboy->start_recording_from_end_of_replay(*data);
     this->set_window_title_element("Replay resumed!");
     this->currently_recording = true;
+    this->refresh_pause_state();
 }
 
 void EmulatorWindow::set_up_replay_playback_environment() {
