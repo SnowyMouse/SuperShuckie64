@@ -21,7 +21,7 @@ ControlsSettingsWindow::ControlsSettingsWindow(QWidget *parent, EmulatorWindow &
         this->selected_settings->addItem(i.second->get_name(), name.c_str());
         this->all_settings[name] = SettingsTuple {
             .all_settings = {i.second->settings_button, i.second->settings_analog_positive, i.second->settings_analog_negative},
-            .input_type = InputType::Controller
+            .input_type = dynamic_cast<ControllerInputDevice *>(&*i.second) ? InputType::Controller : InputType::Keyboard
         };
     }
 
@@ -49,6 +49,8 @@ ControlsSettingsWindow::ControlsSettingsWindow(QWidget *parent, EmulatorWindow &
 
     this->container_widget->setFixedSize(this->container_widget->sizeHint());
     this->setWindowTitle("Controls settings");
+
+    connect(this->selected_settings, SIGNAL(currentIndexChanged(int)), this, SLOT(regenerate_controls_container()));
 }
 
 static std::string input_name(std::uint8_t input, InputType input_type, ControlType control_type) {
@@ -76,6 +78,7 @@ static std::string input_name(std::uint8_t input, InputType input_type, ControlT
             return std::string(name) + prefix;
             break;
         }
+        case InputType::Keyboard: return keyboard_button_name(static_cast<KeyboardButton>(input));
         default: std::terminate();
     }
 }
@@ -114,7 +117,12 @@ ControlSettingsField::ControlSettingsField(QWidget *parent, ControlsSettingsWind
 }
 
 void ControlSettingsField::keyPressEvent(QKeyEvent *event) {
-    // do nothing
+    if(this->settings_window.selected_settings->currentText() == "Keyboard") {
+        auto key = qt_keycode_to_keyboard_button(event->key());
+        if(key != std::nullopt) {
+            this->settings_window.handle_input(*key, ControlType::Button);
+        }
+    }
 }
 
 void ControlsSettingsWindow::regenerate_controls_container() {

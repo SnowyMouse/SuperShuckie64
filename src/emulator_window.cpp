@@ -69,6 +69,7 @@ EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &defau
     #endif
 
     this->valid = true;
+    this->add_keyboard();
     this->handle_loaded_rom();
 }
 
@@ -308,12 +309,14 @@ void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) 
         return;
     }
 
+    auto &controller = dynamic_cast<ControllerInputDevice &>(*what->second);
+
     if(!this->suppress_game_input) {
-        what->second->register_input(this->input_state, event, on);
+        controller.register_input(this->input_state, event, on);
         this->update_input_state_on_gameboy();
     }
 
-    emit on_device_input(event, *what->second);
+    emit on_device_input(event, controller);
 }
 
 void EmulatorWindow::update_input_state_on_gameboy() noexcept {
@@ -344,12 +347,14 @@ void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
         return;
     }
 
+    auto &controller = dynamic_cast<ControllerInputDevice &>(*what->second);
+
     if(!this->suppress_game_input) {
-        what->second->register_input(this->input_state, event);
+        controller.register_input(this->input_state, event);
         this->update_input_state_on_gameboy();
     }
 
-    emit on_device_input(event, *what->second);
+    emit on_device_input(event, controller);
 }
 
 void EmulatorWindow::handle_loaded_rom() noexcept {
@@ -367,7 +372,7 @@ void EmulatorWindow::add_device(SDL_GameController *controller) noexcept {
     }
 
     auto dev = std::make_shared<ControllerInputDevice>(controller);
-    this->load_settings_for_controller(*dev);
+    this->load_settings_for_device(*dev);
     this->input_devices[dev->get_joystick_id()] = dev;
 
     char message[256];
@@ -375,7 +380,7 @@ void EmulatorWindow::add_device(SDL_GameController *controller) noexcept {
     this->set_window_title_element(message);
 }
 
-void EmulatorWindow::write_settings_for_controller(const ControllerInputDevice &device) {
+void EmulatorWindow::write_settings_for_device(const InputDevice &device) {
     auto settings = get_settings();
 
     auto button_settings = device.get_name_settings() + "/buttons";
@@ -390,12 +395,15 @@ void EmulatorWindow::write_settings_for_controller(const ControllerInputDevice &
     settings.setValue(analog_positive_settings, QByteArray(reinterpret_cast<char *>(analog_positive.data()), analog_positive.size()));
     settings.setValue(analog_negative_settings, QByteArray(reinterpret_cast<char *>(analog_negative.data()), analog_negative.size()));
 
-    settings.setValue(device.get_name_settings() + "/lower-deadzone", device.lower_dead_zone);
-    settings.setValue(device.get_name_settings() + "/upper-deadzone", device.upper_dead_zone);
-    settings.setValue(device.get_name_settings() + "/on-threshold", device.on_threshold);
+    auto *controller = dynamic_cast<const ControllerInputDevice *>(&device);
+    if(controller) {
+        settings.setValue(device.get_name_settings() + "/lower-deadzone", controller->lower_dead_zone);
+        settings.setValue(device.get_name_settings() + "/upper-deadzone", controller->upper_dead_zone);
+        settings.setValue(device.get_name_settings() + "/on-threshold", controller->on_threshold);
+    }
 }
 
-void EmulatorWindow::load_settings_for_controller(ControllerInputDevice &device) {
+void EmulatorWindow::load_settings_for_device(InputDevice &device) {
     auto settings = get_settings();
 
     auto restore_defaults_key = device.get_name_settings() + "/restore-defaults";
@@ -404,7 +412,7 @@ void EmulatorWindow::load_settings_for_controller(ControllerInputDevice &device)
     if(should_restore_defaults) {
         settings.setValue(restore_defaults_key, false);
         device.restore_default_settings();
-        this->write_settings_for_controller(device);
+        this->write_settings_for_device(device);
         return;
     }
 
@@ -420,9 +428,13 @@ void EmulatorWindow::load_settings_for_controller(ControllerInputDevice &device)
     device.settings_analog_positive = Settings::deserialize(byte_array_to_uint8array(settings.value(analog_positive_settings).toByteArray()));
     device.settings_analog_negative = Settings::deserialize(byte_array_to_uint8array(settings.value(analog_negative_settings).toByteArray()));
 
-    device.lower_dead_zone = settings.value(device.get_name_settings() + "/lower-deadzone", device.lower_dead_zone).toDouble();
-    device.upper_dead_zone = settings.value(device.get_name_settings() + "/upper-deadzone", device.upper_dead_zone).toDouble();
-    device.on_threshold = settings.value(device.get_name_settings() + "/on-threshold", device.on_threshold).toDouble();
+    auto *controller = dynamic_cast<ControllerInputDevice *>(&device);
+    if(controller) {
+        controller->lower_dead_zone = settings.value(device.get_name_settings() + "/lower-deadzone", controller->lower_dead_zone).toDouble();
+        controller->upper_dead_zone = settings.value(device.get_name_settings() + "/upper-deadzone", controller->upper_dead_zone).toDouble();
+        controller->on_threshold = settings.value(device.get_name_settings() + "/on-threshold", controller->on_threshold).toDouble();
+    }
+
 }
 
 void EmulatorWindow::closeEvent(QCloseEvent *event) {
@@ -470,4 +482,17 @@ void EmulatorWindow::refresh_pause_state() noexcept {
 void EmulatorWindow::toggle_pause() {
     this->manually_pause_option->setChecked(!this->manually_paused);
     this->update_manually_paused();
+}
+
+void EmulatorWindow::add_keyboard() {
+    auto dev = std::make_shared<KeyboardInputDevice>();
+    this->load_settings_for_device(*dev);
+    this->input_devices[-262626] = dev;
+}
+
+void EmulatorWindow::handle_keyboard_event(std::uint8_t key, bool on) {
+    if(!this->suppress_game_input) {
+        dynamic_cast<KeyboardInputDevice &>(*this->input_devices[-262626]).register_input(this->input_state, key, on);
+        this->update_input_state_on_gameboy();
+    }
 }

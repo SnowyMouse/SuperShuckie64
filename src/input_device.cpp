@@ -3,11 +3,12 @@ extern "C" {
 }
 #include "input_device.hpp"
 #include <algorithm>
-
+#include <optional>
+#include <QKeyEvent>
 
 using namespace SuperShuckie64;
 
-ControllerInputDevice::ControllerInputDevice(SDL_GameController *what) noexcept : what(what) {
+ControllerInputDevice::ControllerInputDevice(SDL_GameController *what) : what(what) {
     const char *n = this->get_name();
     this->name_settings = n;
     for(char &c : this->name_settings) {
@@ -118,15 +119,6 @@ static void apply_button_logic_for_axis(InputState &response, float on_threshold
     else if(axis_last >= on_threshold && axis_now < on_threshold) {
         apply_button_logic(response, input, input_rapid_fire, input_toggle, false);
     }
-}
-
-void ControllerInputDevice::register_input(InputState &response, const SDL_ControllerButtonEvent &button, bool on) noexcept {
-    auto input = this->settings_button.input[button.button];
-    auto input_rapid_fire = this->settings_button.input_rapid_fire[button.button];
-    auto input_toggle = this->settings_button.input_toggle[button.button];
-
-    apply_button_logic(response, input, input_rapid_fire, input_toggle, on);
-    apply_axis_logic(response, input, on ? 1.0 : 0.0);
 }
 
 void ControllerInputDevice::register_input(InputState &response, const SDL_ControllerAxisEvent &axis) noexcept {
@@ -260,4 +252,135 @@ std::vector<std::uint8_t> Settings::serialize() const {
     what.insert(what.end(), input_rapid_fire.begin(), input_rapid_fire.end());
 
     return what;
+}
+
+KeyboardInputDevice::KeyboardInputDevice() : name_settings("keyboard") {
+
+}
+
+void ControllerInputDevice::register_input(InputState &response, const SDL_ControllerButtonEvent &button, bool on) noexcept {
+    auto input = this->settings_button.input[button.button];
+    auto input_rapid_fire = this->settings_button.input_rapid_fire[button.button];
+    auto input_toggle = this->settings_button.input_toggle[button.button];
+
+    apply_button_logic(response, input, input_rapid_fire, input_toggle, on);
+    apply_axis_logic(response, input, on ? 1.0 : 0.0);
+}
+
+void KeyboardInputDevice::register_input(InputState &response, std::uint8_t button, bool on) noexcept {
+    auto input = this->settings_button.input[button];
+    auto input_rapid_fire = this->settings_button.input_rapid_fire[button];
+    auto input_toggle = this->settings_button.input_toggle[button];
+
+    apply_button_logic(response, input, input_rapid_fire, input_toggle, on);
+    apply_axis_logic(response, input, on ? 1.0 : 0.0);
+}
+
+const char *SuperShuckie64::keyboard_button_name(KeyboardButton button) noexcept {
+    switch(button) {
+        case Keyboard_Button_A: return "A";
+        case Keyboard_Button_B: return "B";
+        case Keyboard_Button_C: return "C";
+        case Keyboard_Button_D: return "D";
+        case Keyboard_Button_E: return "E";
+        case Keyboard_Button_F: return "F";
+        case Keyboard_Button_G: return "G";
+        case Keyboard_Button_H: return "H";
+        case Keyboard_Button_I: return "I";
+        case Keyboard_Button_J: return "J";
+        case Keyboard_Button_K: return "K";
+        case Keyboard_Button_L: return "L";
+        case Keyboard_Button_M: return "M";
+        case Keyboard_Button_N: return "N";
+        case Keyboard_Button_O: return "O";
+        case Keyboard_Button_P: return "P";
+        case Keyboard_Button_Q: return "Q";
+        case Keyboard_Button_R: return "R";
+        case Keyboard_Button_S: return "S";
+        case Keyboard_Button_T: return "T";
+        case Keyboard_Button_U: return "U";
+        case Keyboard_Button_V: return "V";
+        case Keyboard_Button_W: return "W";
+        case Keyboard_Button_X: return "X";
+        case Keyboard_Button_Y: return "Y";
+        case Keyboard_Button_Z: return "Z";
+        case Keyboard_Button_0: return "0";
+        case Keyboard_Button_1: return "1";
+        case Keyboard_Button_2: return "2";
+        case Keyboard_Button_3: return "3";
+        case Keyboard_Button_4: return "4";
+        case Keyboard_Button_5: return "5";
+        case Keyboard_Button_6: return "6";
+        case Keyboard_Button_7: return "7";
+        case Keyboard_Button_8: return "8";
+        case Keyboard_Button_9: return "9";
+        case Keyboard_Button_Numpad_0: return "Numpad 0";
+        case Keyboard_Button_Numpad_1: return "Numpad 1";
+        case Keyboard_Button_Numpad_2: return "Numpad 2";
+        case Keyboard_Button_Numpad_3: return "Numpad 3";
+        case Keyboard_Button_Numpad_4: return "Numpad 4";
+        case Keyboard_Button_Numpad_5: return "Numpad 5";
+        case Keyboard_Button_Numpad_6: return "Numpad 6";
+        case Keyboard_Button_Numpad_7: return "Numpad 7";
+        case Keyboard_Button_Numpad_8: return "Numpad 8";
+        case Keyboard_Button_Numpad_9: return "Numpad 9";
+        case Keyboard_Button_Space: return "Space";
+        case Keyboard_Button_Shift: return "Shift";
+        case Keyboard_Button_Return: return "Return";
+        case Keyboard_Button_Left: return "Left";
+        case Keyboard_Button_Down: return "Down";
+        case Keyboard_Button_Up: return "Up";
+        case Keyboard_Button_Right: return "Right";
+        default: return "MISSINGNO.";
+    }
+}
+
+std::optional<KeyboardButton> SuperShuckie64::qt_keycode_to_keyboard_button(int key) noexcept {
+    switch(key) {
+        case Qt::Key_A: return KeyboardButton::Keyboard_Button_A;
+        case Qt::Key_B: return KeyboardButton::Keyboard_Button_B;
+        case Qt::Key_C: return KeyboardButton::Keyboard_Button_C;
+        case Qt::Key_D: return KeyboardButton::Keyboard_Button_D;
+        case Qt::Key_E: return KeyboardButton::Keyboard_Button_E;
+        case Qt::Key_F: return KeyboardButton::Keyboard_Button_F;
+        case Qt::Key_G: return KeyboardButton::Keyboard_Button_G;
+        case Qt::Key_H: return KeyboardButton::Keyboard_Button_H;
+        case Qt::Key_I: return KeyboardButton::Keyboard_Button_I;
+        case Qt::Key_J: return KeyboardButton::Keyboard_Button_J;
+        case Qt::Key_K: return KeyboardButton::Keyboard_Button_K;
+        case Qt::Key_L: return KeyboardButton::Keyboard_Button_L;
+        case Qt::Key_M: return KeyboardButton::Keyboard_Button_M;
+        case Qt::Key_N: return KeyboardButton::Keyboard_Button_N;
+        case Qt::Key_O: return KeyboardButton::Keyboard_Button_O;
+        case Qt::Key_P: return KeyboardButton::Keyboard_Button_P;
+        case Qt::Key_Q: return KeyboardButton::Keyboard_Button_Q;
+        case Qt::Key_R: return KeyboardButton::Keyboard_Button_R;
+        case Qt::Key_S: return KeyboardButton::Keyboard_Button_S;
+        case Qt::Key_T: return KeyboardButton::Keyboard_Button_T;
+        case Qt::Key_U: return KeyboardButton::Keyboard_Button_U;
+        case Qt::Key_V: return KeyboardButton::Keyboard_Button_V;
+        case Qt::Key_W: return KeyboardButton::Keyboard_Button_W;
+        case Qt::Key_X: return KeyboardButton::Keyboard_Button_X;
+        case Qt::Key_Y: return KeyboardButton::Keyboard_Button_Y;
+        case Qt::Key_Z: return KeyboardButton::Keyboard_Button_Z;
+        case Qt::Key_0: return KeyboardButton::Keyboard_Button_0;
+        case Qt::Key_1: return KeyboardButton::Keyboard_Button_1;
+        case Qt::Key_2: return KeyboardButton::Keyboard_Button_2;
+        case Qt::Key_3: return KeyboardButton::Keyboard_Button_3;
+        case Qt::Key_4: return KeyboardButton::Keyboard_Button_4;
+        case Qt::Key_5: return KeyboardButton::Keyboard_Button_5;
+        case Qt::Key_6: return KeyboardButton::Keyboard_Button_6;
+        case Qt::Key_7: return KeyboardButton::Keyboard_Button_7;
+        case Qt::Key_8: return KeyboardButton::Keyboard_Button_8;
+        case Qt::Key_9: return KeyboardButton::Keyboard_Button_9;
+        case Qt::Key_Space: return KeyboardButton::Keyboard_Button_Space;
+        case Qt::Key_Shift: return KeyboardButton::Keyboard_Button_Shift;
+        case Qt::Key_Return: return KeyboardButton::Keyboard_Button_Return;
+        case Qt::Key_Left: return KeyboardButton::Keyboard_Button_Left;
+        case Qt::Key_Down: return KeyboardButton::Keyboard_Button_Down;
+        case Qt::Key_Up: return KeyboardButton::Keyboard_Button_Up;
+        case Qt::Key_Right: return KeyboardButton::Keyboard_Button_Right;
+
+        default: return std::nullopt;
+    }
 }

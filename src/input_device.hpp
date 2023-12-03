@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <SDL2/SDL.h>
+#include <optional>
 
 namespace SuperShuckie64 {
     struct InputState {
@@ -22,7 +23,8 @@ namespace SuperShuckie64 {
 
     // Corresponds to an input type
     enum InputType {
-        Controller
+        Controller,
+        Keyboard
     };
 
     enum ButtonType {
@@ -78,6 +80,7 @@ namespace SuperShuckie64 {
     public:
         virtual const char *get_name() const = 0;
         virtual const std::string &get_name_settings() const = 0;
+        virtual void restore_default_settings() noexcept {};
 
         // Settings for all buttons
         Settings settings_button;
@@ -89,26 +92,12 @@ namespace SuperShuckie64 {
         Settings settings_analog_negative;
     };
 
-    class KeyboardInputDevice : public InputDevice {
-    public:
-        const char *get_name() const noexcept override {
-            return this->name_settings.c_str();
-        }
-
-        const std::string &get_name_settings() const noexcept override {
-            return this->name_settings;
-        }
-
-    private:
-        std::string name_settings = "keyboard";
-    };
-
     class ControllerInputDevice : public InputDevice {
     public:
-        ControllerInputDevice(SDL_GameController *what) noexcept;
+        ControllerInputDevice(SDL_GameController *what);
         void register_input(InputState &state, const SDL_ControllerButtonEvent &button, bool on) noexcept;
         void register_input(InputState &state, const SDL_ControllerAxisEvent &axis) noexcept;
-        void restore_default_settings() noexcept;
+        void restore_default_settings() noexcept override;
         SDL_JoystickID get_joystick_id() const noexcept {
             return SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(this->what));
         }
@@ -140,6 +129,83 @@ namespace SuperShuckie64 {
         // Name of the controller's settings
         std::string name_settings;
     };
+
+    class KeyboardInputDevice: public InputDevice {
+    public:
+        KeyboardInputDevice();
+        void register_input(InputState &response, std::uint8_t button, bool on) noexcept;
+        const char *get_name() const noexcept override {
+            return "Keyboard";
+        }
+        const std::string &get_name_settings() const noexcept override {
+            return this->name_settings;
+        }
+    private:
+        std::string name_settings;
+    };
+
+    enum KeyboardButton : std::uint8_t {
+        Keyboard_Button_A,
+        Keyboard_Button_B,
+        Keyboard_Button_C,
+        Keyboard_Button_D,
+        Keyboard_Button_E,
+        Keyboard_Button_F,
+        Keyboard_Button_G,
+        Keyboard_Button_H,
+        Keyboard_Button_I,
+        Keyboard_Button_J,
+        Keyboard_Button_K,
+        Keyboard_Button_L,
+        Keyboard_Button_M,
+        Keyboard_Button_N,
+        Keyboard_Button_O,
+        Keyboard_Button_P,
+        Keyboard_Button_Q,
+        Keyboard_Button_R,
+        Keyboard_Button_S,
+        Keyboard_Button_T,
+        Keyboard_Button_U,
+        Keyboard_Button_V,
+        Keyboard_Button_W,
+        Keyboard_Button_X,
+        Keyboard_Button_Y,
+        Keyboard_Button_Z,
+
+        Keyboard_Button_0,
+        Keyboard_Button_1,
+        Keyboard_Button_2,
+        Keyboard_Button_3,
+        Keyboard_Button_4,
+        Keyboard_Button_5,
+        Keyboard_Button_6,
+        Keyboard_Button_7,
+        Keyboard_Button_8,
+        Keyboard_Button_9,
+
+        Keyboard_Button_Numpad_0,
+        Keyboard_Button_Numpad_1,
+        Keyboard_Button_Numpad_2,
+        Keyboard_Button_Numpad_3,
+        Keyboard_Button_Numpad_4,
+        Keyboard_Button_Numpad_5,
+        Keyboard_Button_Numpad_6,
+        Keyboard_Button_Numpad_7,
+        Keyboard_Button_Numpad_8,
+        Keyboard_Button_Numpad_9,
+
+        Keyboard_Button_Space,
+        Keyboard_Button_Shift,
+        Keyboard_Button_Return,
+
+        Keyboard_Button_Left,
+        Keyboard_Button_Down,
+        Keyboard_Button_Up,
+        Keyboard_Button_Right,
+    };
+
+    const char *keyboard_button_name(KeyboardButton button) noexcept;
+    std::optional<KeyboardButton> qt_keycode_to_keyboard_button(int key) noexcept;
 }
 
 #endif

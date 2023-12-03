@@ -33,6 +33,7 @@ namespace SuperShuckie64 {
         Q_OBJECT
 
         friend ControlsSettingsWindow;
+        friend PixelBufferView;
 
     public:
         EmulatorWindow(const std::optional<std::filesystem::path> &default_rom);
@@ -99,7 +100,7 @@ namespace SuperShuckie64 {
         bool is_resetting = false;
         bool is_pausing = false;
 
-        std::unordered_map<SDL_JoystickID, std::shared_ptr<ControllerInputDevice>> input_devices;
+        std::unordered_map<long long, std::shared_ptr<InputDevice>> input_devices;
 
         // Moment when the window was created
         std::chrono::steady_clock::time_point created_time = std::chrono::steady_clock::now();
@@ -128,8 +129,8 @@ namespace SuperShuckie64 {
         void reload_speed_settings() noexcept;
         bool load_rom(const std::optional<std::filesystem::path> &path);
         void handle_loaded_rom() noexcept;
-        void write_settings_for_controller(const ControllerInputDevice &device);
-        void load_settings_for_controller(ControllerInputDevice &device);
+        void write_settings_for_device(const InputDevice &device);
+        void load_settings_for_device(InputDevice &device);
         void set_up_menu();
         void add_device(SDL_ControllerDeviceEvent &event) noexcept;
         void remove_device(SDL_ControllerDeviceEvent &event) noexcept;
@@ -146,6 +147,9 @@ namespace SuperShuckie64 {
         std::optional<std::vector<std::byte>> read_replay_file(const char *replay);
         void set_up_replay_playback_environment();
         void toggle_pause();
+        void add_keyboard();
+
+        void handle_keyboard_event(std::uint8_t key, bool on);
 
 
     private slots:

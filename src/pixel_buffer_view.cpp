@@ -45,3 +45,27 @@ void PixelBufferView::dropEvent(QDropEvent *event) {
         window.load_and_start_rom(*path);
     }
 }
+
+void PixelBufferView::keyPressEvent(QKeyEvent *event) {
+    if(event->isAutoRepeat()) {
+        return;
+    }
+
+    auto key_maybe = qt_keycode_to_keyboard_button(event->key());
+    if(key_maybe != std::nullopt) {
+        std::printf("...on\n");
+        this->window.handle_keyboard_event(*key_maybe, true);
+    }
+}
+
+void PixelBufferView::keyReleaseEvent(QKeyEvent *event) {
+    if(event->isAutoRepeat()) {
+        return;
+    }
+
+    auto key_maybe = qt_keycode_to_keyboard_button(event->key());
+    if(key_maybe != std::nullopt) {
+        std::printf("...off\n");
+        this->window.handle_keyboard_event(*key_maybe, false);
+    }
+}

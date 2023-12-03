@@ -339,6 +339,7 @@ void EmulatorWindow::open_rom_dialog() {
 void EmulatorWindow::reload_all_controllers() {
     this->input_devices.clear();
 
+    this->add_keyboard();
     for(int i = 0; i < SDL_NumJoysticks(); i++) {
         this->add_device(SDL_GameControllerOpen(i));
     }
@@ -621,7 +622,7 @@ void EmulatorWindow::open_controls_settings_dialog() {
             device.settings_analog_positive = i.second.all_settings[1];
             device.settings_analog_negative = i.second.all_settings[2];
 
-            this->write_settings_for_controller(device);
+            this->write_settings_for_device(device);
 
             break;
         }
