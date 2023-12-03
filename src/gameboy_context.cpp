@@ -165,19 +165,25 @@ void GameboyContext::handle_udp_commands() noexcept {
                 if(this->is_playing_back_inner()) {
                     break;
                 }
-
-                GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), requested_address, requested_bank, param2.byteptr, param2.size);
-                for(std::uint64_t i = 0; i < param2.size; i++) {
-                    if(this->is_recording_inner()) {
-                        this->replay_recorder->write_WriteRAMByteAddr32(param2.byteptr[i], (requested_bank << 16) | static_cast<std::uint16_t>(requested_address + i));
-                    }
-                }
-
+                this->queued_udp_writes.emplace_back(requested_bank, requested_address, param2.byteptr, param2.size);
                 break;
             }
         }
         this->udp_command_server->pop_request();
     }
+}
+
+void GameboyContext::handle_queued_udp_writes() noexcept {
+    for(auto &write : this->queued_udp_writes) {
+        auto size = write.bytes.size();
+        GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), write.address, write.bank, write.bytes.data(), size);
+        for(std::uint64_t i = 0; i < size; i++) {
+            if(this->is_recording_inner()) {
+                this->replay_recorder->write_WriteRAMByteAddr32(write.bytes[i], (write.bank << 16) | static_cast<std::uint16_t>(write.address + i));
+            }
+        }
+    }
+    this->queued_udp_writes.clear();
 }
 
 void GameboyContext::on_vblank() noexcept {
@@ -194,7 +200,7 @@ void GameboyContext::on_vblank() noexcept {
     }
 
     if(this->udp_command_server.get()) {
-        this->handle_udp_commands();
+        this->handle_queued_udp_writes();
     }
 
     if(this->reset_queued) {
@@ -267,6 +273,9 @@ void GameboyContext::run_thread() noexcept {
     while(true) {
         bool end_of_playback = this->is_playing_back_inner() && this->current_playback_offset == this->playback_command_count;
         bool is_paused = end_of_playback || this->paused;
+
+        // Handle any read/write requests here
+        this->handle_udp_commands();
 
         if(end_of_playback) {
             if(this->replay_to_append) {

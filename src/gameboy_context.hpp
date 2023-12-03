@@ -181,6 +181,16 @@ namespace SuperShuckie64 {
 
         std::unique_ptr<GB_gameboy_t, void (*)(GB_gameboy_t *)> gameboy;
 
+        struct QueuedUDPWrite {
+            std::uint32_t bank;
+            std::uint32_t address;
+            std::vector<std::uint8_t> bytes;
+
+            QueuedUDPWrite(std::uint32_t bank, std::uint32_t address, const std::uint8_t *bytes, std::size_t bytes_length) : bank(bank), address(address), bytes(bytes, bytes + bytes_length) {}
+        };
+
+        std::vector<QueuedUDPWrite> queued_udp_writes;
+
         struct Keyframe {
             std::uint64_t frame_index;
             std::uint8_t current_input;
@@ -212,6 +222,7 @@ namespace SuperShuckie64 {
         void start_replay_playback_inner(ReplayReaderItemCollection &&replay);
         void skip_to_frame_inner(std::uint64_t frame) noexcept;
         void handle_udp_commands() noexcept;
+        void handle_queued_udp_writes() noexcept;
         void run_thread() noexcept;
     };
 }
