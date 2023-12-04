@@ -128,7 +128,8 @@ extern "C" void GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, s
 extern "C" void GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, std::uint16_t address, std::uint16_t bank_or_ffff, const std::uint8_t *input, std::size_t input_size);
 
 void GameboyContext::handle_udp_commands() noexcept {
-    std::vector<std::uint8_t> bytes(65536);
+    // Used for holding the response to read requests
+    std::uint8_t read_data_response[8192];
 
     while(true) {
         std::uint8_t type;
@@ -154,11 +155,11 @@ void GameboyContext::handle_udp_commands() noexcept {
                 return;
             }
             case RA_RequestType_ReadCoreMemory: {
-                if(param2.size > bytes.size()) {
+                if(param2.size > sizeof(read_data_response)) {
                     break;
                 }
-                GB_safe_read_memory_except_its_actually_safe(this->gameboy.get(), requested_address, requested_bank, bytes.data(), param2.size);
-                this->udp_command_server->handle_read_request(bytes.data());
+                GB_safe_read_memory_except_its_actually_safe(this->gameboy.get(), requested_address, requested_bank, read_data_response, param2.size);
+                this->udp_command_server->handle_read_request(read_data_response);
                 break;
             }
             case RA_RequestType_WriteCoreMemory: {

@@ -53,7 +53,6 @@ void PixelBufferView::keyPressEvent(QKeyEvent *event) {
 
     auto key_maybe = qt_keycode_to_keyboard_button(event->key());
     if(key_maybe != std::nullopt) {
-        std::printf("...on\n");
         this->window.handle_keyboard_event(*key_maybe, true);
     }
 }
@@ -65,7 +64,6 @@ void PixelBufferView::keyReleaseEvent(QKeyEvent *event) {
 
     auto key_maybe = qt_keycode_to_keyboard_button(event->key());
     if(key_maybe != std::nullopt) {
-        std::printf("...off\n");
         this->window.handle_keyboard_event(*key_maybe, false);
     }
 }
