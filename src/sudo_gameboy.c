@@ -168,10 +168,14 @@ uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t 
     BankData bank_data;
     while(output_size > 0) {
         get_bank_data(gb, address, &bank_data, bank_or_ffff);
+
         size_t address_offset = bank_data.actual_address - bank_data.addr_start;
         size_t available_bytes = bank_data.len - address_offset;
         size_t bytes_to_copy = output_size > available_bytes ? available_bytes : output_size;
-        memcpy(output, bank_data.requested_byte_location, bytes_to_copy);
+
+        if(bank_data.start != NULL) {
+            memcpy(output, bank_data.requested_byte_location, bytes_to_copy);
+        }
 
         output_size -= bytes_to_copy;
         output += bytes_to_copy;
@@ -182,10 +186,14 @@ uint8_t GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t
     BankData bank_data;
     while(input_size > 0) {
         get_bank_data(gb, address, &bank_data, bank_or_ffff);
+
         size_t address_offset = bank_data.actual_address - bank_data.addr_start;
         size_t available_bytes = bank_data.len - address_offset;
         size_t bytes_to_copy = input_size > available_bytes ? available_bytes : input_size;
-        memcpy(bank_data.requested_byte_location, input, bytes_to_copy);
+
+        if(bank_data.start != NULL) {
+            memcpy(bank_data.requested_byte_location, input, bytes_to_copy);
+        }
 
         input_size -= bytes_to_copy;
         input += bytes_to_copy;
