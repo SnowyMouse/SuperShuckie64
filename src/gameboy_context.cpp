@@ -267,7 +267,16 @@ void GameboyContext::on_vblank(GB_gameboy_t *gb, GB_vblank_type_t type) noexcept
     resolve_instance(gb).vblank_performed = true;
 }
 
+#ifdef _WIN32
+void exception_handler_signal(int c);
+#endif
+
 void GameboyContext::run_thread() noexcept {
+    #ifdef _WIN32
+    signal(SIGABRT, exception_handler_signal);
+    signal(SIGSEGV, exception_handler_signal);
+    #endif
+
     this->execute_lock.lock();
     std::size_t i = 0;
 

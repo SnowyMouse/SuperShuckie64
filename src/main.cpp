@@ -26,15 +26,22 @@ Q_IMPORT_PLUGIN(QWindowsVistaStylePlugin)
 #include <windows.h>
 extern "C" void RR_PrintBacktrace();
 
+extern "C" uint16_t GB_safe_last_accessed_address;
+extern "C" uint16_t GB_safe_last_accessed_bank;
+extern "C" size_t GB_safe_last_accessed_size;
+extern "C" const char *GB_safe_last_accessed_method;
+extern "C" uint8_t *GB_safe_last_accessed_real_address;
+
 static void exception_handler_stacktrace() {
     std::fprintf(stderr, "A fatal error occurred. Here's the stack trace:\n");
     std::fflush(stderr);
     RR_PrintBacktrace();
+    std::fprintf(stderr, "Last accessed address with GB_safe*: %04X:%04X, len=%08zX, addr=%016p, method=%s\n", GB_safe_last_accessed_bank, GB_safe_last_accessed_address, GB_safe_last_accessed_size, GB_safe_last_accessed_real_address, GB_safe_last_accessed_method);
     std::fprintf(stderr, "SHUCKIE fainted!\n");
     std::fflush(stderr);
 }
 
-static void exception_handler_signal(int c) {
+void exception_handler_signal(int c) {
     switch(c) {
         case SIGSEGV: {
             std::fprintf(stderr, "Segmentation fault detected!\n");

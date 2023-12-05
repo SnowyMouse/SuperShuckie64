@@ -164,8 +164,20 @@ static void get_bank_data(GB_gameboy_t *gb, uint16_t address, BankData *bank, ui
     bank->requested_byte_location = bank->start;
 }
 
+uint16_t GB_safe_last_accessed_address = 0;
+uint16_t GB_safe_last_accessed_bank = 0;
+size_t GB_safe_last_accessed_size = 0;
+const char *GB_safe_last_accessed_method = "---";
+uint8_t *GB_safe_last_accessed_real_address = NULL;
+
 uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t address, uint16_t bank_or_ffff, uint8_t *output, size_t output_size) {
     BankData bank_data;
+
+    GB_safe_last_accessed_address = address;
+    GB_safe_last_accessed_bank = bank_or_ffff;
+    GB_safe_last_accessed_size = output_size;
+    GB_safe_last_accessed_method = "read";
+
     while(output_size > 0) {
         get_bank_data(gb, address, &bank_data, bank_or_ffff);
 
@@ -174,6 +186,7 @@ uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t 
         size_t bytes_to_copy = output_size > available_bytes ? available_bytes : output_size;
 
         if(bank_data.start != NULL) {
+            GB_safe_last_accessed_real_address = bank_data.requested_byte_location;
             memcpy(output, bank_data.requested_byte_location, bytes_to_copy);
         }
 
@@ -184,6 +197,12 @@ uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t 
 
 uint8_t GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t address, uint16_t bank_or_ffff, uint8_t *input, size_t input_size) {
     BankData bank_data;
+
+    GB_safe_last_accessed_address = address;
+    GB_safe_last_accessed_bank = bank_or_ffff;
+    GB_safe_last_accessed_size = input_size;
+    GB_safe_last_accessed_method = "write";
+
     while(input_size > 0) {
         get_bank_data(gb, address, &bank_data, bank_or_ffff);
 
@@ -192,6 +211,7 @@ uint8_t GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t
         size_t bytes_to_copy = input_size > available_bytes ? available_bytes : input_size;
 
         if(bank_data.start != NULL) {
+            GB_safe_last_accessed_real_address = bank_data.requested_byte_location;
             memcpy(bank_data.requested_byte_location, input, bytes_to_copy);
         }
 
