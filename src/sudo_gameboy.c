@@ -168,6 +168,7 @@ uint16_t GB_safe_last_accessed_address = 0;
 uint16_t GB_safe_last_accessed_bank = 0;
 size_t GB_safe_last_accessed_size = 0;
 const char *GB_safe_last_accessed_method = "---";
+size_t GB_safe_last_accessed_alloc_size = 0;
 uint8_t *GB_safe_last_accessed_real_address = NULL;
 
 uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t address, uint16_t bank_or_ffff, uint8_t *output, size_t output_size) {
@@ -187,6 +188,8 @@ uint8_t GB_safe_read_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t 
 
         if(bank_data.start != NULL) {
             GB_safe_last_accessed_real_address = bank_data.requested_byte_location;
+            GB_safe_last_accessed_alloc_size = 0x12345678;
+            GB_safe_last_accessed_alloc_size = _msize(bank_data.requested_byte_location);
             memcpy(output, bank_data.requested_byte_location, bytes_to_copy);
         }
 
@@ -212,6 +215,8 @@ uint8_t GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t
 
         if(bank_data.start != NULL) {
             GB_safe_last_accessed_real_address = bank_data.requested_byte_location;
+            GB_safe_last_accessed_alloc_size = 0x12345678;
+            GB_safe_last_accessed_alloc_size = _msize(bank_data.requested_byte_location);
             memcpy(bank_data.requested_byte_location, input, bytes_to_copy);
         }
 

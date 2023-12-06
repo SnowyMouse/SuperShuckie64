@@ -31,12 +31,13 @@ extern "C" uint16_t GB_safe_last_accessed_bank;
 extern "C" size_t GB_safe_last_accessed_size;
 extern "C" const char *GB_safe_last_accessed_method;
 extern "C" uint8_t *GB_safe_last_accessed_real_address;
+extern "C" size_t GB_safe_last_accessed_alloc_size;
 
 static void exception_handler_stacktrace() {
     std::fprintf(stderr, "A fatal error occurred. Here's the stack trace:\n");
     std::fflush(stderr);
     RR_PrintBacktrace();
-    std::fprintf(stderr, "Last accessed address with GB_safe*: %04X:%04X, len=%08zX, addr=%016p, method=%s\n", GB_safe_last_accessed_bank, GB_safe_last_accessed_address, GB_safe_last_accessed_size, GB_safe_last_accessed_real_address, GB_safe_last_accessed_method);
+    std::fprintf(stderr, "Last accessed address with GB_safe*: %04X:%04X, len=%08zX, addr=%016p[%016X], method=%s\n", GB_safe_last_accessed_bank, GB_safe_last_accessed_address, GB_safe_last_accessed_size, GB_safe_last_accessed_real_address, GB_safe_last_accessed_alloc_size, GB_safe_last_accessed_method);
     std::fprintf(stderr, "SHUCKIE fainted!\n");
     std::fflush(stderr);
 }

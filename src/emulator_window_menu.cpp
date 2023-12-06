@@ -421,7 +421,7 @@ void EmulatorWindow::update_recording_tmp_file() {
     if(latest_bytes.empty()) {
         return;
     }
-    if(std::fwrite(latest_bytes.data(), latest_bytes.size(), 1, this->temporary_file_recording) != 1) {
+    if(std::fwrite(latest_bytes.data(), latest_bytes.size(), 1, this->temporary_file_recording) != 1 || std::fflush(this->temporary_file_recording) != 0) {
         DISPLAY_ERROR_DIALOG("Failed to create replay", "Could not write to replay file %s", this->temporary_file_path.string().c_str());
         this->stop_replay_recording();
         this->close_recording_tmp_file();
