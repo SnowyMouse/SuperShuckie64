@@ -268,13 +268,12 @@ void GameboyContext::on_vblank(GB_gameboy_t *gb, GB_vblank_type_t type) noexcept
 }
 
 #ifdef _WIN32
-void exception_handler_signal(int c);
+void setup_exception_handlers();
 #endif
 
 void GameboyContext::run_thread() noexcept {
     #ifdef _WIN32
-    signal(SIGABRT, exception_handler_signal);
-    signal(SIGSEGV, exception_handler_signal);
+    setup_exception_handlers();
     #endif
 
     this->execute_lock.lock();
@@ -377,7 +376,7 @@ void GameboyContext::start_replay_recording(const char *rom_name) {
     this->acquire_context();
 
     if(this->is_playing_back_inner()) {
-        std::fputs("Can't record and playback at the same time!", stderr);
+        std::fputs("Can't record and playback at the same time!\n", stderr);
         std::terminate();
     }
 
@@ -412,7 +411,6 @@ std::uint32_t GameboyContext::insert_savestate_in_replay() {
 
 std::vector<std::byte> GameboyContext::get_current_replay_recording_data(std::size_t offset) {
     if(!this->replay_recorder) {
-        std::fputs("Can't get current replay recording data if no recorder is present!", stderr);
         return {};
     }
 
@@ -691,7 +689,7 @@ std::vector<std::byte> GameboyContext::get_current_replay_recording_data_compres
     this->acquire_context();
     if(!this->is_recording_inner()) {
         this->unlock_context();
-        std::fputs("Can't get compressed stream if not recording!", stderr);
+        std::fputs("Can't get compressed stream if not recording!\n", stderr);
         std::terminate();
     }
     auto compressed_stream = this->replay_recorder->compressed();

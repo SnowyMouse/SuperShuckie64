@@ -198,7 +198,7 @@ Settings Settings::deserialize(const std::vector<std::uint8_t> &what) {
     std::vector<std::unordered_map<std::uint8_t, std::uint8_t>> maps;
 
     if(what.size() % 2 != 0 || what.size() < 2 || what[what.size() - 1] != 0xFF || what[what.size() - 2] != 0xFF) {
-        std::fputs("Malformed settings detected; using null settings!", stderr);
+        std::fputs("Malformed settings detected; using null settings!\n", stderr);
         return Settings {};
     }
 
