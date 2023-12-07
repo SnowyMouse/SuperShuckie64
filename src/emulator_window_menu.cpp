@@ -105,7 +105,9 @@ void EmulatorWindow::set_up_menu() {
 
 
 void EmulatorWindow::close_rom() {
-    this->save_sram();
+    if(!this->save_and_close()) {
+        return;
+    }
     this->load_rom(std::nullopt);
     this->handle_loaded_rom();
     this->set_window_title_element("ROM unloaded!");
@@ -132,20 +134,20 @@ static std::optional<std::string> ask_for_save_game(const char *title) {
     return save_name->text().toStdString();
 }
 
-void EmulatorWindow::save_sram() {
+bool EmulatorWindow::save_sram() {
     if(!this->current_rom) {
         this->set_window_title_element("Can't save - no ROM loaded!");
-        return; // no rom loaded
+        return true; // no rom loaded
     }
 
     if(this->current_save_name.empty()) {
         this->set_window_title_element("Can't save - no save loaded!");
-        return;
+        return true;
     }
 
     if(this->current_save_name == RESERVED_REPLAY_PLAYBACK_SAVE_NAME) {
-        if(this->gameboy->is_playing_back() || true) {
-            return; // no need to save if playing back
+        if(this->gameboy->is_playing_back()) {
+            return true; // no need to save if playing back
         }
 
         QMessageBox msg;
@@ -156,18 +158,20 @@ void EmulatorWindow::save_sram() {
         msg.setIcon(QMessageBox::Question);
 
         if(msg.exec() == QMessageBox::Yes) {
-            this->save_sram_new();
+            return this->save_sram_new();
         }
 
-        return;
+        return false;
     }
 
     auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
     if(write_file(sram, this->gameboy->get_sram())) {
         this->set_window_title_element("Saved SRAM successfully!");
+        return true;
     }
     else {
         this->set_window_title_element("Failed to write SRAM.");
+        return false;
     }
 }
 
@@ -211,16 +215,16 @@ void EmulatorWindow::new_game() {
         }
     }
 
-    if(should_save_sram) {
-        this->save_sram();
+    if(should_save_sram && !this->save_and_close()) {
+        return;
     }
     this->switch_sram(result);
 }
 
-void EmulatorWindow::save_sram_new() {
+bool EmulatorWindow::save_sram_new() {
     auto new_game = ask_for_save_game("Save as new game");
     if(!new_game) {
-        return;
+        return false;
     }
     auto &result = *new_game;
 
@@ -236,13 +240,13 @@ void EmulatorWindow::save_sram_new() {
         msg.setDefaultButton(QMessageBox::Cancel);
         msg.setIcon(QMessageBox::Question);
         if(msg.exec() == QMessageBox::Cancel) {
-            return;
+            return false;
         }
     }
 
     this->current_save_name = result;
     this->update_save_name_in_title_bar();
-    this->save_sram();
+    return this->save_sram();
 }
 
 static std::optional<std::string> choose_from_list(const char *title, const char *prompt, const std::vector<std::string> &options, const char *default_selection) {
@@ -305,8 +309,9 @@ void EmulatorWindow::load_game() {
     if(!selection) {
         return;
     }
-
-    this->save_sram();
+    if(!this->save_and_close()) {
+        return;
+    }
     this->switch_sram(*selection);
 }
 
@@ -440,6 +445,9 @@ void EmulatorWindow::close_recording_tmp_file() noexcept {
 }
 
 void EmulatorWindow::continue_replay_recording() {
+    if(!this->save_and_close()) {
+        return;
+    }
     if(!this->check_can_start_recording()) {
         return;
     }
@@ -461,10 +469,6 @@ void EmulatorWindow::continue_replay_recording() {
 }
 
 void EmulatorWindow::set_up_replay_playback_environment() {
-    // Save what we have
-    this->save_sram();
-
-    // Reload the emulator
     this->current_save_name = RESERVED_REPLAY_PLAYBACK_SAVE_NAME;
     this->reload_current_rom_data();
 }
@@ -553,6 +557,9 @@ std::optional<std::vector<std::byte>> EmulatorWindow::read_replay_file(const cha
 }
 
 void EmulatorWindow::load_replay() {
+    if(!this->save_and_close()) {
+        return;
+    }
     auto selection = this->pick_replay();
     if(!selection) {
         return;

@@ -35,22 +35,22 @@ extern "C" size_t GB_safe_last_accessed_alloc_size;
 extern "C" uint8_t *GB_safe_last_accessed_alloc_start;
 
 static void exception_handler_stacktrace() {
-    std::fprintf(stderr, "A fatal error occurred. Here's the stack trace:\n");
+    std::fputs("A fatal error occurred. Here's the stack trace:\n", stderr);
     std::fflush(stderr);
     RR_PrintBacktrace();
     std::fprintf(stderr, "Last accessed address with GB_safe*: %04X:%04X, len=%08zX, addr=%016p[%016p-%016zX], method=%s\n", GB_safe_last_accessed_bank, GB_safe_last_accessed_address, GB_safe_last_accessed_size, GB_safe_last_accessed_alloc_start, GB_safe_last_accessed_real_address, GB_safe_last_accessed_alloc_size, GB_safe_last_accessed_method);
-    std::fprintf(stderr, "SHUCKIE fainted!\n");
+    std::fputs("SHUCKIE fainted!\n", stderr);
     std::fflush(stderr);
 }
 
 void exception_handler_signal(int c) {
     switch(c) {
         case SIGSEGV: {
-            std::fprintf(stderr, "Segmentation fault detected!\n");
+            std::fputs("Segmentation fault detected!\n", stderr);
             break;
         }
         case SIGABRT: {
-            std::fprintf(stderr, "Abort signal received! (likely an unhandled exception somewhere)\n");
+            std::fputs("Abort signal received! (likely an unhandled exception somewhere)\n", stderr);
             break;
         }
     }

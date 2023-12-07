@@ -447,7 +447,7 @@ bool GameboyContext::is_playing_back() noexcept {
 
 void GameboyContext::start_replay_playback_inner(ReplayReaderItemCollection &&collection) {
     if(this->is_recording_inner()) {
-        std::fprintf(stderr, "Can't record and playback at the same time!\n");
+        std::fputs("Can't record and playback at the same time!\n", stderr);
         std::terminate();
     }
 
@@ -601,7 +601,7 @@ void GameboyContext::play_latest_packet() {
     }
 
     if(this->current_playback_offset >= this->playback_command_count) {
-        std::fprintf(stderr, "trying to play a packet at or after the end\n");
+        std::fputs("trying to play a packet at or after the end\n", stderr);
         std::terminate();
     }
 
@@ -629,7 +629,7 @@ void GameboyContext::play_latest_packet() {
                 latest.read_LoadSaveState(index);
                 auto state_maybe = this->replay_states.find(index);
                 if(state_maybe == this->replay_states.end()) {
-                    std::fprintf(stderr, "Tried to load a save state of an index %zu but no such state was given yet.", static_cast<std::size_t>(index));
+                    std::fprintf(stderr, "Tried to load a save state of an index %zu but no such state was given yet.\n", static_cast<std::size_t>(index));
                     break;
                 }
                 GB_load_state_from_buffer(this->gameboy.get(), reinterpret_cast<const std::uint8_t *>(state_maybe->second.data()), state_maybe->second.size());

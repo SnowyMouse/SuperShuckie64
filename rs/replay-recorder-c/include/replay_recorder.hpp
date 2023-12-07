@@ -195,7 +195,7 @@ public:
         }
 
         if(!this->reader.get()) {
-            std::fputs("Can't read the replay due to an error!", stderr);
+            std::fputs("Can't read the replay due to an error!\n", stderr);
             throw std::exception();
         }
     }

@@ -194,7 +194,7 @@ void EmulatorWindow::tick() {
 
                 // If the window wasn't closed, warn
                 if(this->isVisible()) {
-                    std::fprintf(stderr, "Can't close the main window. Finish what you're doing, first!\n");
+                    std::fputs("Can't close the main window. Finish what you're doing, first!\n", stderr);
                 }
                 break;
 
@@ -305,7 +305,7 @@ void EmulatorWindow::remove_device(SDL_ControllerDeviceEvent &event) noexcept {
 void EmulatorWindow::register_button(SDL_ControllerButtonEvent &event, bool on) noexcept {
     auto what = this->input_devices.find(event.which);
     if(what == this->input_devices.end()) {
-        std::fprintf(stderr, "Tried to register a button for a device that isn't registered.\n");
+        std::fputs("Tried to register a button for a device that isn't registered.\n", stderr);
         return;
     }
 
@@ -343,7 +343,7 @@ void EmulatorWindow::update_input_state_on_gameboy() noexcept {
 void EmulatorWindow::register_axis(SDL_ControllerAxisEvent &event) noexcept {
     auto what = this->input_devices.find(event.which);
     if(what == this->input_devices.end()) {
-        std::fprintf(stderr, "Tried to register a button for a device that isn't registered.\n");
+        std::fputs("Tried to register a button for a device that isn't registered.\n", stderr);
         return;
     }
 
@@ -367,7 +367,7 @@ void EmulatorWindow::handle_loaded_rom() noexcept {
 
 void EmulatorWindow::add_device(SDL_GameController *controller) noexcept {
     if(controller == nullptr) {
-        std::fprintf(stderr, "Tried to add a null controller.\n");
+        std::fputs("Tried to add a null controller.\n", stderr);
         return;
     }
 
@@ -437,8 +437,23 @@ void EmulatorWindow::load_settings_for_device(InputDevice &device) {
 
 }
 
+bool EmulatorWindow::save_and_close() {
+    if(!this->save_sram()) {
+        QMessageBox msg;
+        msg.setWindowTitle("Save failed");
+        msg.setText("Couldn't save your save data to disk. Do you want to close it anyway?\n\nWARNING: All unsaved progress will be lost if you click 'Yes'.");
+        msg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msg.setDefaultButton(QMessageBox::No);
+        msg.setIcon(QMessageBox::Question);
+        return msg.exec() == QMessageBox::Yes;
+    }
+    return true;
+}
+
 void EmulatorWindow::closeEvent(QCloseEvent *event) {
-    this->save_sram();
+    if(!this->save_and_close()) {
+        return;
+    }
     QMainWindow::closeEvent(event);
 }
 

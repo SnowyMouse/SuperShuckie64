@@ -151,17 +151,25 @@ namespace SuperShuckie64 {
 
         void handle_keyboard_event(std::uint8_t key, bool on);
 
+        /**
+         * Use if this is the last chance for the user to save
+         *
+         * @return false if saving failed and the user didn't want to abandon the save (don't proceed with your operation after this)
+         */
+        bool save_and_close();
+
 
     private slots:
+        bool save_sram();
+        bool save_sram_new();
+
         void set_scaling_settings(QAction *);
         void open_rom_dialog();
         void open_speed_settings_dialog();
         void reload_all_controllers();
         void close_rom();
-        void save_sram();
         void new_game();
         void load_game();
-        void save_sram_new();
         void start_replay_recording();
         void stop_replay_recording();
         void load_replay();
