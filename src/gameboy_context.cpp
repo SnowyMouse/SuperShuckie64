@@ -324,11 +324,10 @@ void GameboyContext::run_thread() noexcept {
         this->execute_lock.lock();
         this->execute_wait.unlock();
         if(this->stop_thread) {
-            goto end;
+            break;
         }
     }
 
-    end:
     this->execute_lock.unlock();
     this->thread_running = false;
 }

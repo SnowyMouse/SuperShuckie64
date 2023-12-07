@@ -80,7 +80,6 @@ static void get_bank_data(GB_gameboy_t *gb, uint16_t address, BankData *bank, ui
     if(address < 0xC000) {
         bank->len = 0x1000;
         bank->start = gb->mbc_ram;
-        bank->current_bank = gb->mbc_ram_bank;
 
         if(address < 0xB000) {
             bank->addr_start = 0xA000;
@@ -88,8 +87,18 @@ static void get_bank_data(GB_gameboy_t *gb, uint16_t address, BankData *bank, ui
         }
         else {
             bank->addr_start = 0xB000;
-            bank->max_bank = 0;
+            bank->max_bank = gb->mbc_ram_size / bank->len - 1;
         }
+
+        if(bank->start == NULL || gb->mbc_ram_size == 0) {
+            bank->max_bank = 0;
+            bank->current_bank = 0;
+            bank->start = NULL;
+            bank->requested_byte_location = NULL;
+            return;
+        }
+
+        bank->current_bank = gb->mbc_ram_bank & bank->max_bank;
 
         return resolve_byte_for_bank(bank, requested_bank_or_ffff, address);
     }
