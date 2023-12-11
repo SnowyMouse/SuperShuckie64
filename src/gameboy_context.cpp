@@ -146,7 +146,7 @@ void GameboyContext::handle_udp_commands() noexcept {
             requested_bank = 1;
         }
         if(param1 >= 0x10000 && param1 <= 0x15FFF) {
-            requested_bank = (param1 - 0x10000) / 0x1000;
+            requested_bank = param1 / 0x1000 - 14;
             requested_address = (param1 % 0x1000) + 0xD000;
         }
 
