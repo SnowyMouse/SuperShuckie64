@@ -408,40 +408,40 @@ bool EmulatorWindow::make_recording_tmp_file() {
 
     auto path_str = this->temporary_file_path.string();
     const char *path_cstr = path_str.c_str();
-    this->temporary_file_recording = std::fopen(path_cstr, "wb");
-    this->temporary_file_recording_offset = 0;
-    this->temporary_file_time_since_last_save = std::chrono::steady_clock::now();
-    if(!this->temporary_file_recording) {
+
+    auto *f = std::fopen(path_cstr, "wb");
+    if(!f) {
         DISPLAY_ERROR_DIALOG("Failed to create replay", "Could not create replay file %s", path_cstr);
         return false;
     }
+
+    this->temporary_file_path_cstr = std::move(path_str);
+    this->temporary_file_recording_offset = 0;
+    this->temporary_file_time_since_last_save = std::chrono::steady_clock::now();
+    std::fclose(f);
+
     return true;
 }
 
 void EmulatorWindow::update_recording_tmp_file() {
-    if(!this->temporary_file_recording) {
+    if(!this->currently_recording) {
         return;
     }
     auto latest_bytes = this->gameboy->get_current_replay_recording_data(this->temporary_file_recording_offset);
     if(latest_bytes.empty()) {
         return;
     }
-    if(std::fwrite(latest_bytes.data(), latest_bytes.size(), 1, this->temporary_file_recording) != 1 || std::fflush(this->temporary_file_recording) != 0) {
+
+    auto *f = std::fopen(this->temporary_file_path_cstr.c_str(), "ab");
+    if(!f || std::fwrite(latest_bytes.data(), latest_bytes.size(), 1, f) != 1) {
         DISPLAY_ERROR_DIALOG("Failed to create replay", "Could not write to replay file %s", this->temporary_file_path.string().c_str());
         this->stop_replay_recording();
-        this->close_recording_tmp_file();
-        return;
     }
-    this->temporary_file_recording_offset += latest_bytes.size();
-    this->temporary_file_time_since_last_save = std::chrono::steady_clock::now();
-}
-
-void EmulatorWindow::close_recording_tmp_file() noexcept {
-    if(!this->temporary_file_recording) {
-        return;
+    else {
+        this->temporary_file_recording_offset += latest_bytes.size();
+        this->temporary_file_time_since_last_save = std::chrono::steady_clock::now();
     }
-    std::fclose(this->temporary_file_recording);
-    this->temporary_file_recording = nullptr;
+    std::fclose(f);
 }
 
 void EmulatorWindow::continue_replay_recording() {
@@ -493,7 +493,6 @@ void EmulatorWindow::stop_replay_recording() {
     }
     this->currently_recording = false;
     this->update_recording_tmp_file();
-    this->close_recording_tmp_file();
     auto compressed = this->gameboy->get_current_replay_recording_data_compressed();
     this->gameboy->stop_replay_recording();
 
