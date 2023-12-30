@@ -196,7 +196,7 @@ void GameboyContext::on_vblank() noexcept {
 
         std::uint32_t keyframe_interval = 240;
         if(++(this->frames_since_last_save_state) >= keyframe_interval) {
-            this->insert_savestate_in_replay();
+            this->insert_savestate_in_replay(this->create_savestate());
         }
     }
 
@@ -376,6 +376,7 @@ void GameboyContext::start_replay_recording(const char *rom_name) {
 
     if(this->is_playing_back_inner()) {
         std::fputs("Can't record and playback at the same time!\n", stderr);
+        std::fflush(stderr);
         std::terminate();
     }
 
@@ -385,7 +386,7 @@ void GameboyContext::start_replay_recording(const char *rom_name) {
 
     // automatically create and load a savestate here!
     this->keyframe_index = 0x80000000;
-    this->replay_recorder->write_LoadSaveState(this->insert_savestate_in_replay());
+    this->replay_recorder->write_LoadSaveState(this->insert_savestate_in_replay(this->create_savestate()));
     this->replay_recorder->write_ChangeGameSpeed(this->speed_multiplier);
 
     this->unlock_context();
@@ -398,12 +399,11 @@ std::vector<std::uint8_t> &GameboyContext::create_savestate() {
     return this->savestate_buffer;
 }
 
-std::uint32_t GameboyContext::insert_savestate_in_replay() {
+std::uint32_t GameboyContext::insert_savestate_in_replay(const std::vector<std::uint8_t> &state) {
     this->frames_since_last_save_state = 0;
 
-    auto &savestate = this->create_savestate();
     auto keyframe_added = this->keyframe_index;
-    this->replay_recorder->write_AddSaveState(keyframe_added, savestate.data(), savestate.size());
+    this->replay_recorder->write_AddSaveState(keyframe_added, state.data(), state.size());
     this->keyframe_index = (this->keyframe_index + 1) | 0x80000000;
     return keyframe_added;
 }
@@ -447,6 +447,7 @@ bool GameboyContext::is_playing_back() noexcept {
 void GameboyContext::start_replay_playback_inner(ReplayReaderItemCollection &&collection) {
     if(this->is_recording_inner()) {
         std::fputs("Can't record and playback at the same time!\n", stderr);
+        std::fflush(stderr);
         std::terminate();
     }
 
@@ -601,6 +602,7 @@ void GameboyContext::play_latest_packet() {
 
     if(this->current_playback_offset >= this->playback_command_count) {
         std::fputs("trying to play a packet at or after the end\n", stderr);
+        std::fflush(stderr);
         std::terminate();
     }
 
@@ -629,6 +631,7 @@ void GameboyContext::play_latest_packet() {
                 auto state_maybe = this->replay_states.find(index);
                 if(state_maybe == this->replay_states.end()) {
                     std::fprintf(stderr, "Tried to load a save state of an index %zu but no such state was given yet.\n", static_cast<std::size_t>(index));
+                    std::fflush(stderr);
                     break;
                 }
                 GB_load_state_from_buffer(this->gameboy.get(), reinterpret_cast<const std::uint8_t *>(state_maybe->second.data()), state_maybe->second.size());
@@ -689,9 +692,26 @@ std::vector<std::byte> GameboyContext::get_current_replay_recording_data_compres
     if(!this->is_recording_inner()) {
         this->unlock_context();
         std::fputs("Can't get compressed stream if not recording!\n", stderr);
+        std::fflush(stderr);
         std::terminate();
     }
     auto compressed_stream = this->replay_recorder->compressed();
     this->unlock_context();
     return compressed_stream;
+}
+
+std::vector<std::uint8_t> GameboyContext::create_save_state_unindexed() {
+    this->acquire_context();
+    auto new_savestate = std::vector<std::uint8_t>(this->create_savestate());
+    this->unlock_context();
+    return new_savestate;
+}
+
+void GameboyContext::load_save_state_unindexed(std::vector<std::uint8_t> &data) noexcept {
+    this->acquire_context();
+    if(this->is_recording_inner()) {
+        this->replay_recorder->write_LoadSaveState(this->insert_savestate_in_replay(data));
+    }
+    GB_load_state_from_buffer(this->gameboy.get(), data.data(), data.size());
+    this->unlock_context();
 }

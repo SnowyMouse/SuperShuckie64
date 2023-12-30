@@ -71,6 +71,8 @@ EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &defau
     this->valid = true;
     this->add_keyboard();
     this->handle_loaded_rom();
+
+    this->setGeometry(this->window_position());
 }
 
 bool EmulatorWindow::load_and_start_rom(const std::optional<std::filesystem::path> &path) {
@@ -362,6 +364,7 @@ void EmulatorWindow::handle_loaded_rom() noexcept {
     this->set_window_title_element(rom_loaded ? "ROM loaded successfully!" : "ROM unloaded successfully!");
     this->gameplay_menu->setEnabled(rom_loaded);
     this->replays_menu->setEnabled(rom_loaded);
+    this->save_states_menu->setEnabled(rom_loaded);
     this->refresh_pause_state();
 }
 
@@ -454,6 +457,7 @@ void EmulatorWindow::closeEvent(QCloseEvent *event) {
     if(!this->save_and_close()) {
         return;
     }
+    this->window_position(this->geometry());
     QMainWindow::closeEvent(event);
 }
 
@@ -482,6 +486,14 @@ bool EmulatorWindow::ignore_recording_speed_changes_setting(int new_setting) {
     return setting.value("replay/disable_speed_changes_when_recording", 0).toBool();
 }
 
+QRect EmulatorWindow::window_position(std::optional<QRect> new_position) {
+    auto setting = get_settings();
+    if(new_position) {
+        setting.setValue("window/position", *new_position);
+    }
+    return setting.value("window/position", this->geometry()).toRect();
+}
+
 bool EmulatorWindow::loop_playback_setting(int new_setting) {
     auto setting = get_settings();
     if(new_setting == 0 || new_setting == 1) {
@@ -499,15 +511,17 @@ void EmulatorWindow::toggle_pause() {
     this->update_manually_paused();
 }
 
+#define KEYBOARD_INDEX (-262626)
+
 void EmulatorWindow::add_keyboard() {
     auto dev = std::make_shared<KeyboardInputDevice>();
     this->load_settings_for_device(*dev);
-    this->input_devices[-262626] = dev;
+    this->input_devices[KEYBOARD_INDEX] = dev;
 }
 
 void EmulatorWindow::handle_keyboard_event(std::uint8_t key, bool on) {
     if(!this->suppress_game_input) {
-        dynamic_cast<KeyboardInputDevice &>(*this->input_devices[-262626]).register_input(this->input_state, key, on);
+        dynamic_cast<KeyboardInputDevice &>(*this->input_devices[KEYBOARD_INDEX]).register_input(this->input_state, key, on);
         this->update_input_state_on_gameboy();
     }
 }

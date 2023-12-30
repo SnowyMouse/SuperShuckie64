@@ -24,6 +24,7 @@ void EmulatorWindow::set_up_menu() {
     // Add base menus
     auto *file_menu = bar->addMenu("File");
     this->gameplay_menu = bar->addMenu("Gameplay");
+    this->save_states_menu = bar->addMenu("Save states");
     this->replays_menu = bar->addMenu("Replays");
     auto *settings_menu = bar->addMenu("Settings");
 
@@ -76,6 +77,10 @@ void EmulatorWindow::set_up_menu() {
         a->setChecked(false); \
         this->manually_pause_option = a; \
     );
+
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Create save state file", this->save_states_menu, create_save_state_inplace(), QKeyCombination(Qt::ControlModifier | Qt::AltModifier, Qt::Key_S));
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Open save state file...", this->save_states_menu, open_save_state_inplace(), QKeyCombination(Qt::ControlModifier | Qt::AltModifier, Qt::Key_O));
+    this->save_states_menu->addSeparator();
 
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->replays_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->replays_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
@@ -288,24 +293,7 @@ static std::optional<std::string> choose_from_list(const char *title, const char
 }
 
 void EmulatorWindow::load_game() {
-    // Get all current SRAMs
-    std::vector<std::string> list;
-    auto srams = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData);
-    for(auto i : std::filesystem::directory_iterator(srams)) {
-        auto basename = i.path().filename().replace_extension().string();
-        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, basename.c_str());
-        if(!std::filesystem::exists(path) || basename.empty()) {
-            continue;
-        }
-        list.emplace_back(basename.c_str());
-    }
-
-    if(list.empty()) {
-        DISPLAY_ERROR_DIALOG("No save files found", "You do not have any save files for %s", this->current_rom_name.c_str());
-        return;
-    }
-
-    auto selection = choose_from_list("Load save file", "Choose a save file to load:", list, this->current_save_name.c_str());
+    auto selection = this->pick_user_data(RomUserDataType::RomUserDataType_SaveData);
     if(!selection) {
         return;
     }
@@ -404,7 +392,7 @@ void EmulatorWindow::start_replay_recording() {
 }
 
 bool EmulatorWindow::make_recording_tmp_file() {
-    this->temporary_file_path = this->assign_recording_file_name("tmp-recording");
+    this->temporary_file_path = this->assign_user_data_file_name("tmp-recording", RomUserDataType::RomUserDataType_Replays);
 
     auto path_str = this->temporary_file_path.string();
     const char *path_cstr = path_str.c_str();
@@ -451,11 +439,11 @@ void EmulatorWindow::continue_replay_recording() {
     if(!this->check_can_start_recording()) {
         return;
     }
-    auto replay = this->pick_replay();
+    auto replay = this->pick_user_data(RomUserDataType::RomUserDataType_Replays);
     if(!replay) {
         return;
     }
-    auto data = this->read_replay_file(replay->c_str());
+    auto data = this->read_user_data_file(replay->c_str(), RomUserDataType::RomUserDataType_Replays);
     if(!data) {
         return;
     }
@@ -473,12 +461,12 @@ void EmulatorWindow::set_up_replay_playback_environment() {
     this->reload_current_rom_data();
 }
 
-std::filesystem::path EmulatorWindow::assign_recording_file_name(const char *prefix) {
+std::filesystem::path EmulatorWindow::assign_user_data_file_name(const char *prefix, RomUserDataType data_type) {
     unsigned int c = 0;
     while(true) {
         char fmt[512];
         std::snprintf(fmt, sizeof(fmt), "%s-%u", prefix, c);
-        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, fmt);
+        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), data_type, fmt);
         if(!std::filesystem::exists(path)) {
             return path;
         }
@@ -496,14 +484,9 @@ void EmulatorWindow::stop_replay_recording() {
     auto compressed = this->gameboy->get_current_replay_recording_data_compressed();
     this->gameboy->stop_replay_recording();
 
-    if(this->temporary_file_recording_offset == 0) {
-        this->set_window_title_element("No replay data to write.");
-        return;
-    }
-
     std::filesystem::path path;
     if(!this->recording_file) {
-        path = this->assign_recording_file_name(current_save_name.c_str());
+        path = this->assign_user_data_file_name(current_save_name.c_str(), RomUserDataType::RomUserDataType_Replays);
         this->recording_file = path.filename().string().c_str();
     }
     else {
@@ -525,32 +508,68 @@ void EmulatorWindow::stop_replay_recording() {
     this->set_window_title_element(fmt_result);
 }
 
-std::optional<std::string> EmulatorWindow::pick_replay() {
+std::optional<std::string> EmulatorWindow::pick_user_data(RomUserDataType data_type) {
     // Get all current replays
     std::vector<std::string> list;
-    auto replays = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays);
+    auto replays = get_rom_user_data_path(this->current_rom_name.c_str(), data_type);
     for(auto i : std::filesystem::directory_iterator(replays)) {
         auto basename = i.path().filename().replace_extension().string();
-        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, basename.c_str());
+        auto path = get_rom_user_data_path(this->current_rom_name.c_str(), data_type, basename.c_str());
         if(!std::filesystem::exists(path) || basename.empty()) {
             continue;
         }
         list.emplace_back(basename.c_str());
     }
 
+    const char *data_type_str;
+    const char *data_type_str_plural;
+
+    switch(data_type) {
+        case RomUserDataType::RomUserDataType_Replays:
+            data_type_str_plural = "replays";
+            data_type_str = "replay";
+            break;
+        case RomUserDataType::RomUserDataType_SaveData:
+            data_type_str_plural = "saves";
+            data_type_str = "save";
+            break;
+        case RomUserDataType::RomUserDataType_SaveStates:
+            data_type_str_plural = "save states";
+            data_type_str = "save state";
+            break;
+        default:
+            data_type_str_plural = "MISSINGNO.";
+            data_type_str = "MISSINGNO.";
+            break;
+    }
+
     if(list.empty()) {
-        DISPLAY_ERROR_DIALOG("No replays found", "You do not have any replays for %s", this->current_rom_name.c_str());
+        DISPLAY_ERROR_DIALOG("Not found", "You do not have any %s for %s", data_type_str_plural, this->current_rom_name.c_str());
         return {};
     }
 
-    return choose_from_list("Load replay", "Choose a replay to load:", list, this->current_save_name.c_str());
+    char choose_title[32];
+    char choose_message[64];
+    std::snprintf(choose_title, sizeof(choose_title), "Load %s:", data_type_str);
+    std::snprintf(choose_message, sizeof(choose_message), "Choose a %s to load:", data_type_str);
+
+    return choose_from_list(choose_title, choose_message, list, this->current_save_name.c_str());
 }
 
-std::optional<std::vector<std::byte>> EmulatorWindow::read_replay_file(const char *replay) {
-    auto path = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_Replays, replay);
+std::optional<std::vector<std::byte>> EmulatorWindow::read_user_data_file(const char *name, RomUserDataType data_type) {
+    auto path = get_rom_user_data_path(this->current_rom_name.c_str(), data_type, name);
     auto file = read_file(path);
     if(!file) {
-        DISPLAY_ERROR_DIALOG("Failed to open replay", "Couldn't open %s", replay);
+        DISPLAY_ERROR_DIALOG("Failed to open data", "Couldn't open %s", name);
+    }
+    return file;
+}
+
+std::optional<std::vector<std::uint8_t>> EmulatorWindow::read_user_data_file_u8(const char *name, RomUserDataType data_type) {
+    auto path = get_rom_user_data_path(this->current_rom_name.c_str(), data_type, name);
+    auto file = read_file_u8(path);
+    if(!file) {
+        DISPLAY_ERROR_DIALOG("Failed to open data", "Couldn't open %s", name);
     }
     return file;
 }
@@ -559,11 +578,11 @@ void EmulatorWindow::load_replay() {
     if(!this->save_and_close()) {
         return;
     }
-    auto selection = this->pick_replay();
+    auto selection = this->pick_user_data(RomUserDataType::RomUserDataType_Replays);
     if(!selection) {
         return;
     }
-    auto file = this->read_replay_file(selection->c_str());
+    auto file = this->read_user_data_file(selection->c_str(), RomUserDataType::RomUserDataType_Replays);
     if(!file) {
         return;
     }
@@ -678,4 +697,27 @@ void EmulatorWindow::loop_playback() {
     bool looping = this->loop_playback_option->isChecked();
     this->loop_playback_setting(looping);
     this->gameboy->set_loop_playback(looping);
+}
+
+void EmulatorWindow::create_save_state_inplace() {
+    auto new_file = this->assign_user_data_file_name(current_save_name.c_str(), RomUserDataType_SaveStates);
+    auto save_state = this->gameboy->create_save_state_unindexed();
+    write_file(new_file, save_state);
+
+    char message[256];
+    std::snprintf(message, sizeof(message), "Created save state %s", new_file.filename().string().c_str());
+    this->set_window_title_element(message);
+}
+
+void EmulatorWindow::open_save_state_inplace() {
+    auto save_state = this->pick_user_data(RomUserDataType::RomUserDataType_SaveStates);
+    if(!save_state) {
+        return;
+    }
+    auto file = this->read_user_data_file_u8(save_state->c_str(), RomUserDataType::RomUserDataType_SaveStates);
+    if(!file) {
+        return;
+    }
+    this->gameboy->load_save_state_unindexed(*file);
+    this->set_window_title_element("Loaded save state!");
 }

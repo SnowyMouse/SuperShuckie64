@@ -109,6 +109,16 @@ namespace SuperShuckie64 {
             this->reset_queued = true;
         }
 
+        /**
+         * Creates a save state and returns it.
+         */
+        std::vector<std::uint8_t> create_save_state_unindexed();
+
+        /**
+         * Loads a save state.
+         */
+        void load_save_state_unindexed(std::vector<std::uint8_t> &data) noexcept;
+
         bool is_recording() noexcept;
         void start_replay_recording(const char *rom_name);
         std::vector<std::byte> get_current_replay_recording_data(std::size_t offset = 0);
@@ -174,7 +184,7 @@ namespace SuperShuckie64 {
 
         std::vector<std::uint8_t> savestate_buffer;
         std::vector<std::uint8_t> &create_savestate();
-        std::uint32_t insert_savestate_in_replay();
+        std::uint32_t insert_savestate_in_replay(const std::vector<std::uint8_t> &state);
 
         void handle_new_input(std::uint8_t new_input) noexcept;
         void handle_set_speed(std::uint16_t new_speed) noexcept;

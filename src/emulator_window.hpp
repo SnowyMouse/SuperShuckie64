@@ -4,6 +4,7 @@
 #include "../rs/udp-command-handler/include/udp_command_handler.h"
 #include "gameboy_context.hpp"
 #include "input_device.hpp"
+#include "settings.hpp"
 
 #include <QMainWindow>
 #include <QTimer>
@@ -77,6 +78,7 @@ namespace SuperShuckie64 {
 
         QMenu *gameplay_menu;
         QMenu *replays_menu;
+        QMenu *save_states_menu;
         InputState input_state = {};
         std::unique_ptr<GameboyContext> gameboy;
         QPixmap pixel_buffer_pixmap;
@@ -93,7 +95,7 @@ namespace SuperShuckie64 {
         void update_recording_tmp_file();
 
 
-        std::filesystem::path assign_recording_file_name(const char *prefix);
+        std::filesystem::path assign_user_data_file_name(const char *prefix, RomUserDataType data_type);
 
         // Used to make sure we only do this once when using it from a controller
         bool is_resetting = false;
@@ -113,6 +115,7 @@ namespace SuperShuckie64 {
 
         int scaling_setting(int new_setting = 0);
 
+        QRect window_position(std::optional<QRect> new_position = std::nullopt);
         bool ignore_replay_speed_changes_setting(int new_setting = -1);
         QAction *ignore_replay_speed_changes_option = nullptr;
         bool ignore_recording_speed_changes_setting(int new_setting = -1);
@@ -142,8 +145,9 @@ namespace SuperShuckie64 {
         void switch_sram(const std::string &new_sram);
         void update_save_name_in_title_bar();
         bool check_can_start_recording();
-        std::optional<std::string> pick_replay();
-        std::optional<std::vector<std::byte>> read_replay_file(const char *replay);
+        std::optional<std::string> pick_user_data(RomUserDataType data_type);
+        std::optional<std::vector<std::byte>> read_user_data_file(const char *name, RomUserDataType data_type);
+        std::optional<std::vector<std::uint8_t>> read_user_data_file_u8(const char *name, RomUserDataType data_type);
         void set_up_replay_playback_environment();
         void toggle_pause();
         void add_keyboard();
@@ -182,6 +186,8 @@ namespace SuperShuckie64 {
         void skip_backward();
         void continue_replay_recording();
         void update_manually_paused();
+        void create_save_state_inplace();
+        void open_save_state_inplace();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);
