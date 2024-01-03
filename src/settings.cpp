@@ -1,17 +1,26 @@
 #include <QDir>
 #include <QStandardPaths>
+#include <QCoreApplication>
 #include "error.hpp"
 #include "settings.hpp"
 
 using namespace SuperShuckie64;
 
+// TODO: Figure this out for later
+#define PORTABLE
+#ifdef PORTABLE
+#define SETTINGS_DIRECTORY QCoreApplication::applicationDirPath()
+#else
+#define SETTINGS_DIRECTORY QDir::currentPath()
+#endif
+
 QSettings SuperShuckie64::get_settings() noexcept {
-    auto local_appdir = std::filesystem::path(QDir::currentPath().toStdString()) / "SuperShuckie64.ini";
+    auto local_appdir = std::filesystem::path(SETTINGS_DIRECTORY.toStdString()) / "SuperShuckie64.ini";
     return QSettings(local_appdir.string().c_str(), QSettings::Format::IniFormat);
 }
 
 std::filesystem::path SuperShuckie64::get_applocal_path() {
-    auto local_appdir = std::filesystem::path(std::filesystem::path(QDir::currentPath().toStdString()) / "UserData");
+    auto local_appdir = std::filesystem::path(std::filesystem::path(SETTINGS_DIRECTORY.toStdString()) / "UserData");
     return local_appdir;
 }
 
