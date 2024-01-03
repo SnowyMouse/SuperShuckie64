@@ -123,6 +123,7 @@ namespace SuperShuckie64 {
         bool loop_playback_setting(int new_setting = -1);
         QAction *loop_playback_option = nullptr;
         std::optional<std::string> recording_file;
+        GameboyContext::PaletteOverride gb_color_override_setting(const std::optional<GameboyContext::PaletteOverride> &new_palette = std::nullopt);
 
         // WARNING: Does not save SRAM
         void reload_current_rom_data();
@@ -151,8 +152,8 @@ namespace SuperShuckie64 {
         void set_up_replay_playback_environment();
         void toggle_pause();
         void add_keyboard();
-
         void handle_keyboard_event(std::uint8_t key, bool on);
+        void update_color_on_gb();
 
         /**
          * Use if this is the last chance for the user to save
@@ -188,6 +189,7 @@ namespace SuperShuckie64 {
         void update_manually_paused();
         void create_save_state_inplace();
         void open_save_state_inplace();
+        void open_gbc_in_gb_settings_dialog();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

@@ -365,6 +365,7 @@ void EmulatorWindow::handle_loaded_rom() noexcept {
     this->gameplay_menu->setEnabled(rom_loaded);
     this->replays_menu->setEnabled(rom_loaded);
     this->save_states_menu->setEnabled(rom_loaded);
+    this->update_color_on_gb();
     this->refresh_pause_state();
 }
 

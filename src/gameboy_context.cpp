@@ -187,8 +187,15 @@ void GameboyContext::handle_queued_udp_writes() noexcept {
     this->queued_udp_writes.clear();
 }
 
+extern "C" void sudo_override_gbc_gb_palette(GB_gameboy_t *gb, uint32_t *oam0, uint32_t *oam1, uint32_t *bg);
+
 void GameboyContext::on_vblank() noexcept {
     this->swap_framebuffers();
+
+    if(this->gbc_gb_palette_override) {
+        auto &palette = *this->gbc_gb_palette_override;
+        sudo_override_gbc_gb_palette(this->gameboy.get(), palette.palettes[0], palette.palettes[1], palette.palettes[2]);
+    }
 
     if(this->is_recording_inner()) {
         // must be done first before anything
@@ -713,5 +720,11 @@ void GameboyContext::load_save_state_unindexed(std::vector<std::uint8_t> &data) 
         this->replay_recorder->write_LoadSaveState(this->insert_savestate_in_replay(data));
     }
     GB_load_state_from_buffer(this->gameboy.get(), data.data(), data.size());
+    this->unlock_context();
+}
+
+void GameboyContext::set_gb_gbc_palette_override(const std::optional<PaletteOverride> &override) noexcept {
+    this->acquire_context();
+    this->gbc_gb_palette_override = override;
     this->unlock_context();
 }

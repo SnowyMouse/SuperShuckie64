@@ -8,6 +8,8 @@
 #include <QSpinBox>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QCheckBox>
+#include <QColor>
 #include "error.hpp"
 #include "controls_settings_window.hpp"
 #include "emulator_window.hpp"
@@ -59,6 +61,9 @@ void EmulatorWindow::set_up_menu() {
         action->setData(i);
     }
     connect(scaling, SIGNAL(triggered(QAction *)), this, SLOT(set_scaling_settings(QAction *)));
+
+    auto *color_settings = settings_menu->addMenu("Color settings");
+    ADD_ACTION_AND_CONNECT("GB color palette override", color_settings, open_gbc_in_gb_settings_dialog());
 
     settings_menu->addSeparator();
     ADD_ACTION_AND_CONNECT("Speed settings...", settings_menu, open_speed_settings_dialog());
@@ -722,4 +727,146 @@ void EmulatorWindow::open_save_state_inplace() {
     }
     this->gameboy->load_save_state_unindexed(*file);
     this->set_window_title_element("Loaded save state!");
+}
+
+struct PaletteOverrideGenerator {
+    QString palettes[3][4];
+    bool enabled = false;
+
+    GameboyContext::PaletteOverride into() {
+        GameboyContext::PaletteOverride palette;
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 3; j++) {
+                auto color = QColor::fromString(this->palettes[j][i]);
+                auto red = static_cast<std::uint32_t>(color.red()) & 0xFF;
+                auto green = static_cast<std::uint32_t>(color.green()) & 0xFF;
+                auto blue = static_cast<std::uint32_t>(color.blue()) & 0xFF;
+                palette.palettes[j][i] = 0xFF000000 | (red << 16) | (green << 8) | blue;
+            }
+        }
+        palette.enabled = this->enabled;
+        return palette;
+    }
+
+    static PaletteOverrideGenerator from(const GameboyContext::PaletteOverride &override) {
+        PaletteOverrideGenerator palette;
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 3; j++) {
+                char string[8];
+                std::snprintf(string, sizeof(string), "#%06X", override.palettes[j][i] & 0xFFFFFF);
+                palette.palettes[j][i] = string;
+            }
+        }
+        palette.enabled = override.enabled;
+        return palette;
+    }
+};
+
+// TODO: CLEAN THIS UP; this is awful
+void EmulatorWindow::open_gbc_in_gb_settings_dialog() {
+    QDialog window;
+    auto *layout = new QGridLayout(&window);
+
+    layout->addWidget(new QLabel("BG", &window), 0, 1);
+    layout->addWidget(new QLabel("OAM0", &window), 0, 2);
+    layout->addWidget(new QLabel("OAM1", &window), 0, 3);
+    layout->addWidget(new QLabel("White", &window), 1, 0);
+    layout->addWidget(new QLabel("Light", &window), 2, 0);
+    layout->addWidget(new QLabel("Dark", &window), 3, 0);
+    layout->addWidget(new QLabel("Black", &window), 4, 0);
+
+    QLineEdit *pickers[3][4];
+
+    auto current_setting = this->gb_color_override_setting();
+    auto *enabled = new QCheckBox("Enabled (may require a reset to turn off)", &window);
+    enabled->setChecked(current_setting.enabled);
+
+    for(std::size_t index = 0; index < 4; index++) {
+        for(std::size_t palette = 0; palette < 3; palette++) {
+            auto *picker = new QLineEdit(&window);
+            pickers[palette][index] = picker;
+
+            char as_str[8];
+            std::snprintf(as_str, sizeof(as_str), "#%06X", current_setting.palettes[palette][index] & 0xFFFFFF);
+
+            picker->setText(as_str);
+            layout->addWidget(picker, index + 1, palette + 1);
+        }
+    }
+
+    layout->addWidget(enabled, 5, 0, 1, 5);
+
+    auto *done = new QPushButton("Save", &window);
+    layout->addWidget(done, 6, 0, 1, 5);
+    window.connect(done, SIGNAL(pressed()), &window, SLOT(accept()));
+
+    if(window.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    PaletteOverrideGenerator new_setting;
+    for(std::size_t index = 0; index < 4; index++) {
+        for(std::size_t palette = 0; palette < 3; palette++) {
+            new_setting.palettes[palette][index] = pickers[palette][index]->text();
+        }
+    }
+    new_setting.enabled = enabled->isChecked();
+
+    this->gb_color_override_setting(new_setting.into());
+    this->update_color_on_gb();
+}
+
+void EmulatorWindow::update_color_on_gb() {
+    auto setting = this->gb_color_override_setting();
+    if(!setting.enabled) {
+        this->gameboy->set_gb_gbc_palette_override(std::nullopt);
+    }
+    else {
+        this->gameboy->set_gb_gbc_palette_override(setting);
+    }
+}
+
+GameboyContext::PaletteOverride EmulatorWindow::gb_color_override_setting(const std::optional<GameboyContext::PaletteOverride> &new_palette) {
+    auto settings = get_settings();
+
+    if(new_palette) {
+        auto palette = PaletteOverrideGenerator::from(*new_palette);
+
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 3; j++) {
+                const char *text;
+                switch(j) {
+                    case 0: text = "bg"; break;
+                    case 1: text = "oam0"; break;
+                    case 2: text = "oam1"; break;
+                }
+                char setting[32];
+                std::snprintf(setting, sizeof(setting), "color/gb_gbc_%s_%i", text, i);
+                settings.setValue(setting, palette.palettes[j][i]);
+            }
+        }
+        settings.setValue("color/gb_gbc_enabled", palette.enabled);
+        return *new_palette;
+    }
+
+    else {
+        PaletteOverrideGenerator override;
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 3; j++) {
+                const char *text;
+                switch(j) {
+                    case 0: text = "bg"; break;
+                    case 1: text = "oam0"; break;
+                    case 2: text = "oam1"; break;
+                }
+                char setting[32];
+                std::snprintf(setting, sizeof(setting), "color/gb_gbc_%s_%i", text, i);
+                override.palettes[j][i] = settings.value(setting, "#000000").toString();
+            }
+        }
+        override.enabled = settings.value("color/gb_gbc_enabled", false).toBool();
+        return override.into();
+    }
+
+    std::terminate();
 }

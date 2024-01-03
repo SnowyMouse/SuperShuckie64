@@ -119,6 +119,13 @@ namespace SuperShuckie64 {
          */
         void load_save_state_unindexed(std::vector<std::uint8_t> &data) noexcept;
 
+        struct PaletteOverride {
+            std::uint32_t palettes[3][4] = {}; // oam0, oam1, bg
+            bool enabled = false;
+        };
+
+        void set_gb_gbc_palette_override(const std::optional<PaletteOverride> &override) noexcept;
+
         bool is_recording() noexcept;
         void start_replay_recording(const char *rom_name);
         std::vector<std::byte> get_current_replay_recording_data(std::size_t offset = 0);
@@ -149,6 +156,8 @@ namespace SuperShuckie64 {
         std::atomic_bool paused = true;
         std::atomic_bool reset_queued = false;
         std::atomic_bool loop_playback = false;
+
+        std::optional<PaletteOverride> gbc_gb_palette_override = {};
 
         bool vblank_performed = false;
         std::uint8_t current_input = 0;

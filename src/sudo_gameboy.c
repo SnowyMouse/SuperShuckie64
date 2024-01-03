@@ -234,3 +234,15 @@ uint8_t GB_safe_write_memory_except_its_actually_safe(GB_gameboy_t *gb, uint16_t
         input += bytes_to_copy;
     }
 }
+
+void sudo_override_gbc_gb_palette(GB_gameboy_t *gb, uint32_t *oam0, uint32_t *oam1, uint32_t *bg) {
+    if(GB_is_cgb_in_cgb_mode(gb)) {
+        return;
+    }
+
+    for(uint32_t i = 0; i < 4; i++) {
+        gb->background_palettes_rgb[i] = bg[i];
+        gb->object_palettes_rgb[i] = oam0[i];
+        gb->object_palettes_rgb[i+4] = oam1[i];
+    }
+}
