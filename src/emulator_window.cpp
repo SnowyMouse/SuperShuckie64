@@ -132,7 +132,7 @@ void EmulatorWindow::reload_current_rom_data() {
 }
 
 void EmulatorWindow::update_save_name_in_title_bar() {
-    if(this->current_save_name == "default") {
+    if(this->current_save_name == "default" || this->current_save_name == RESERVED_REPLAY_PLAYBACK_SAVE_NAME) {
         this->displayed_save_name = std::string();
     }
     else {
@@ -444,11 +444,11 @@ bool EmulatorWindow::save_and_close() {
     if(!this->save_sram()) {
         QMessageBox msg;
         msg.setWindowTitle("Save failed");
-        msg.setText("Couldn't save your save data to disk. Do you want to close it anyway?\n\nWARNING: All unsaved progress will be lost if you click 'Yes'.");
-        msg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        msg.setDefaultButton(QMessageBox::No);
+        msg.setText("Couldn't save your save data to disk. Do you want to close it anyway?");
+        msg.setStandardButtons(QMessageBox::Close | QMessageBox::Cancel);
+        msg.setDefaultButton(QMessageBox::Cancel);
         msg.setIcon(QMessageBox::Question);
-        return msg.exec() == QMessageBox::Yes;
+        return msg.exec() == QMessageBox::Close;
     }
     return true;
 }

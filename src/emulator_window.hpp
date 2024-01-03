@@ -24,7 +24,7 @@ class QMenu;
 
 struct SDL_ControllerDeviceEvent;
 
-#define RESERVED_REPLAY_PLAYBACK_SAVE_NAME "replay-playback"
+#define RESERVED_REPLAY_PLAYBACK_SAVE_NAME "?replay-playback"
 
 namespace SuperShuckie64 {
     class PixelBufferView;

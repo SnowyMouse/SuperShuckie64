@@ -157,16 +157,18 @@ bool EmulatorWindow::save_sram() {
 
         QMessageBox msg;
         msg.setWindowTitle("Save replay SRAM?");
-        msg.setText("The replay finished playback, but there may be additional, unsaved changes to the save data, with no game on disk to save it to.\n\nWould you like to save it as a new game?");
-        msg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        msg.setDefaultButton(QMessageBox::Yes);
+        msg.setText("The replay finished playback, but there may be additional, unsaved changes to the save data, with no game on disk to save it to.\n\nWould you like to save it as a new game or discard it?");
+        auto *save_as = new QPushButton("Save as...", &msg);
+        msg.addButton(save_as, QMessageBox::AcceptRole);
+        msg.setStandardButtons(QMessageBox::Discard);
+        msg.setDefaultButton(save_as);
         msg.setIcon(QMessageBox::Question);
 
-        if(msg.exec() == QMessageBox::Yes) {
-            return this->save_sram_new();
+        if(msg.exec() == QMessageBox::Discard) {
+            return true;
         }
 
-        return false;
+        return this->save_sram_new();
     }
 
     auto sram = get_rom_user_data_path(this->current_rom_name.c_str(), RomUserDataType::RomUserDataType_SaveData, this->current_save_name.c_str());
