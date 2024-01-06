@@ -5,6 +5,8 @@
 #include <filesystem>
 
 namespace SuperShuckie64 {
+    void migrate_old_settings() noexcept;
+
     QSettings get_settings() noexcept;
     std::filesystem::path get_applocal_path();
 
@@ -24,6 +26,12 @@ namespace SuperShuckie64 {
 
     // Gets the base dir for a ROM
     std::filesystem::path get_rom_user_data_path(const char *basename);
+
+    // Get the error output log
+    std::filesystem::path get_stderr_log_path();
+
+    // Get the settings ini path
+    std::filesystem::path get_settings_path();
 
     // Gets the user data directory for the ROM
     std::filesystem::path get_rom_user_data_path(const char *basename, RomUserDataType type, const char *innerfile = nullptr);

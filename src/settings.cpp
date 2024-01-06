@@ -6,28 +6,51 @@
 
 using namespace SuperShuckie64;
 
-// TODO: Figure this out for later
-#define PORTABLE
-#ifdef PORTABLE
-#define SETTINGS_DIRECTORY QCoreApplication::applicationDirPath()
-#else
-#define SETTINGS_DIRECTORY QDir::currentPath()
-#endif
+static std::filesystem::path get_settings_directory() {
+    // TODO: Figure this out for later
+    #define PORTABLE
+    #ifdef PORTABLE
+    return std::filesystem::path(QCoreApplication::applicationDirPath().toStdString());
+    #else
+    return std::filesystem::path(QDir::currentPath().toStdString());
+    #endif
+}
+
+std::filesystem::path SuperShuckie64::get_settings_path() {
+    return get_applocal_path() / "config.ini";
+}
+
+void SuperShuckie64::migrate_old_settings() noexcept {
+    auto old_settings = get_settings_directory() / "SuperShuckie64.ini";
+    auto new_settings = get_settings_path();
+    if(std::filesystem::exists(old_settings) && !std::filesystem::exists(new_settings)) {
+        std::filesystem::rename(old_settings, new_settings);
+    }
+
+    auto old_logs = get_settings_directory() / "SuperShuckie64-logs.txt";
+    auto new_logs = get_stderr_log_path();
+
+    if(std::filesystem::exists(old_logs) && !std::filesystem::exists(new_logs)) {
+        std::filesystem::rename(old_logs, new_logs);
+    }
+}
 
 QSettings SuperShuckie64::get_settings() noexcept {
-    auto local_appdir = std::filesystem::path(SETTINGS_DIRECTORY.toStdString()) / "SuperShuckie64.ini";
-    return QSettings(local_appdir.string().c_str(), QSettings::Format::IniFormat);
+    return QSettings(get_settings_path().string().c_str(), QSettings::Format::IniFormat);
 }
 
 std::filesystem::path SuperShuckie64::get_applocal_path() {
-    auto local_appdir = std::filesystem::path(std::filesystem::path(SETTINGS_DIRECTORY.toStdString()) / "UserData");
-    return local_appdir;
+    return get_settings_directory() / "UserData";
 }
 
 std::filesystem::path SuperShuckie64::get_rom_user_data_path(const char *basename) {
     char full_name_data[512];
     std::snprintf(full_name_data, sizeof(full_name_data), "%s-userdata", basename);
     return get_applocal_path() / full_name_data;
+}
+
+std::filesystem::path SuperShuckie64::get_stderr_log_path() {
+    return get_applocal_path() / "logs.txt";
 }
 
 std::filesystem::path SuperShuckie64::get_rom_user_data_path(const char *basename, RomUserDataType type, const char *innerfile) {

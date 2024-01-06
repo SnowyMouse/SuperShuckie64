@@ -91,6 +91,14 @@ static int runapp(int argc, char ** argv) {
         return 1;
     }
 
+    try {
+        migrate_old_settings();
+    }
+    catch(std::exception &e) {
+        DISPLAY_ERROR_DIALOG("Can't initialize application settings!", "Can't migrate settings for %s\n\nMake sure you have permission!\n\nThe error was: %s", path.string().c_str(), e.what());
+        return 1;
+    }
+
     if(is_real_process) {
         EmulatorWindow window(argc >= 2 ? std::optional(std::filesystem::path(argv[1])) : std::nullopt);
 
@@ -110,8 +118,7 @@ static int runapp(int argc, char ** argv) {
         return result;
     }
     else {
-        auto dir = std::filesystem::path(QDir::currentPath().toStdString());
-        auto error = dir / "SuperShuckie64-logs.txt";
+        auto error = get_stderr_log_path();
 
         QProcess process;
         process.setProgram(argv[0]);
