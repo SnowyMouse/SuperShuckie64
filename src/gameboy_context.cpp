@@ -192,6 +192,19 @@ extern "C" void sudo_override_gbc_gb_palette(GB_gameboy_t *gb, uint32_t *oam0, u
 void GameboyContext::on_vblank() noexcept {
     this->swap_framebuffers();
 
+    auto now = std::chrono::steady_clock::now();
+    auto max_frames_fps_tracked = sizeof(this->ns_per_frame) / sizeof(this->ns_per_frame[0]);
+    this->ns_per_frame[this->ns_per_frame_index++] = std::chrono::duration_cast<std::chrono::nanoseconds>(now - this->last_frame_moment).count();
+    this->last_frame_moment = now;
+    if(this->ns_per_frame_index == max_frames_fps_tracked) {
+        this->ns_per_frame_index = 0;
+        std::uint32_t total = 0;
+        for(auto f : this->ns_per_frame) {
+            total += f;
+        }
+        this->average_ns_per_frame = total / max_frames_fps_tracked;
+    }
+
     if(this->gbc_gb_palette_override) {
         auto &palette = *this->gbc_gb_palette_override;
         sudo_override_gbc_gb_palette(this->gameboy.get(), palette.palettes[0], palette.palettes[1], palette.palettes[2]);

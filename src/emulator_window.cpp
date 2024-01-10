@@ -245,6 +245,10 @@ void EmulatorWindow::tick() {
 
     // Do we change the window title back to normal?
     if(this->revert_window_title_timer != std::nullopt && std::chrono::steady_clock::now() > *this->revert_window_title_timer) {
+        this->revert_window_title_timer = std::nullopt;
+        this->revert_window_title();
+    }
+    else if(this->show_fps && std::chrono::steady_clock::now() - std::chrono::seconds(1) > this->time_since_last_window_title_refresh) {
         this->revert_window_title();
     }
 
@@ -254,10 +258,15 @@ void EmulatorWindow::tick() {
 }
 
 void EmulatorWindow::revert_window_title() noexcept {
-    this->revert_window_title_timer = std::nullopt;
+    this->time_since_last_window_title_refresh = std::chrono::steady_clock::now();
+
+    char fps_counter[64] = {};
+    if(this->show_fps) {
+        std::snprintf(fps_counter, sizeof(fps_counter), " (%.01f FPS)", this->gameboy->average_fps());
+    }
 
     char fmt[1024];
-    std::snprintf(fmt, sizeof(fmt), "Super Shuckie 64 (name TBD): %s%s", current_rom == std::nullopt ? "(no ROM loaded)" : current_rom->filename().string().c_str(), this->displayed_save_name.c_str());
+    std::snprintf(fmt, sizeof(fmt), "Super Shuckie 64 (name TBD): %s%s%s", current_rom == std::nullopt ? "(no ROM loaded)" : current_rom->filename().string().c_str(), this->displayed_save_name.c_str(), fps_counter);
 
     this->setWindowTitle(fmt);
 
@@ -272,6 +281,10 @@ void EmulatorWindow::revert_window_title() noexcept {
     if(this->manually_paused) {
         this->setWindowTitle(this->windowTitle() + " [PAUSED]");
     }
+
+    if(this->title_element) {
+        this->setWindowTitle(this->windowTitle() + " - " + *this->title_element);
+    }
 }
 
 void EmulatorWindow::set_window_title_element(const char *what) noexcept {
@@ -285,8 +298,9 @@ void EmulatorWindow::set_window_title_element(const char *what) noexcept {
         return;
     }
 
+    this->title_element = what;
     this->revert_window_title_timer = std::optional(std::chrono::steady_clock::now() + std::chrono::seconds(3));
-    this->setWindowTitle(this->windowTitle() + " - " + what);
+    this->revert_window_title();
 }
 
 void EmulatorWindow::add_device(SDL_ControllerDeviceEvent &event) noexcept {

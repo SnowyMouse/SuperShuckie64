@@ -56,6 +56,7 @@ namespace SuperShuckie64 {
         // store these here to reduce mutex locking
         bool currently_recording = false;
         bool currently_playing_back_recording = false;
+        bool show_fps = true;
 
         bool suppress_game_input = false;
         bool valid = false;
@@ -70,7 +71,9 @@ namespace SuperShuckie64 {
 
         unsigned width, height;
 
+        std::optional<QString> title_element;
         std::optional<std::chrono::steady_clock::time_point> revert_window_title_timer;
+        std::chrono::steady_clock::time_point time_since_last_window_title_refresh;
 
         bool manually_paused = false;
         QAction *manually_pause_option;

@@ -9,6 +9,7 @@ extern "C" {
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <chrono>
 #include <unordered_map>
 #include <optional>
 
@@ -94,6 +95,13 @@ namespace SuperShuckie64 {
         std::uint64_t get_current_frame_index() noexcept;
 
         /**
+         * Get the current average frame rate
+         */
+        double average_fps() noexcept {
+            return (1000000000.0 / this->average_ns_per_frame);
+        }
+
+        /**
          * Set whether or not to ignore speed changes on replay playback
          */
         void set_ignore_speed_changes_on_replay(bool ignore_speed_changes) noexcept;
@@ -172,6 +180,11 @@ namespace SuperShuckie64 {
         std::size_t work_framebuffer = 2;
         std::size_t pixel_count = 0;
         std::uint32_t frames_since_last_save_state;
+
+        std::atomic_uint32_t average_ns_per_frame = 1;
+        std::uint32_t ns_per_frame[32] = {};
+        std::size_t ns_per_frame_index = 0;
+        std::chrono::time_point<std::chrono::steady_clock> last_frame_moment = {};
 
         bool ignore_replay_speed_changes = false;
 
