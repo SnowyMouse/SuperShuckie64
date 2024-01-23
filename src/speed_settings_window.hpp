@@ -2,6 +2,7 @@
 #define SS64_SPEED_SETTINGS_WINDOW_HPP
 
 #include <QDialog>
+#include <QLabel>
 
 class QSpinBox;
 
@@ -17,6 +18,10 @@ namespace SuperShuckie64 {
 
     private:
         QSpinBox *base_speed, *turbo_speed, *slow_speed;
+        QLabel *base_speed_text, *turbo_speed_text, *slow_speed_text;
+
+    private slots:
+        void fixup_speed_text() noexcept;
     };
 }
 
