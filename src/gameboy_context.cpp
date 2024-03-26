@@ -175,12 +175,14 @@ void GameboyContext::handle_udp_commands() noexcept {
 }
 
 void GameboyContext::handle_queued_udp_writes() noexcept {
-    for(auto &write : this->queued_udp_writes) {
-        auto size = write.bytes.size();
-        GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), write.address, write.bank, write.bytes.data(), size);
-        for(std::uint64_t i = 0; i < size; i++) {
-            if(this->is_recording_inner()) {
-                this->replay_recorder->write_WriteRAMByteAddr32(write.bytes[i], (write.bank << 16) | static_cast<std::uint16_t>(write.address + i));
+    if(!this->is_playing_back_inner()) {
+        for(auto &write : this->queued_udp_writes) {
+            auto size = write.bytes.size();
+            GB_safe_write_memory_except_its_actually_safe(this->gameboy.get(), write.address, write.bank, write.bytes.data(), size);
+            for(std::uint64_t i = 0; i < size; i++) {
+                if(this->is_recording_inner()) {
+                    this->replay_recorder->write_WriteRAMByteAddr32(write.bytes[i], (write.bank << 16) | static_cast<std::uint16_t>(write.address + i));
+                }
             }
         }
     }
