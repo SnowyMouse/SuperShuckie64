@@ -165,7 +165,71 @@ void EmulatorWindow::refresh_scale() {
     this->pixel_buffer_view->setFixedHeight(this->height * scale);
     this->pixel_buffer_view->setTransform(QTransform::fromScale(scale, scale));
     this->setFixedSize(this->sizeHint());
+    
+    this->rebuild_pixel_scene();
+}
 
+bool EmulatorWindow::progress_bar_currently_visible() {
+    return this->currently_playing_back_recording && this->playback_frames > 0 && this->show_progress_bar_option->isChecked();
+}
+
+#define PROGRESS_BAR_HEIGHT 8.0
+
+void EmulatorWindow::update_playback_progress_bar() {
+    if(!this->progress_bar_currently_visible()) {
+        if(this->progress_bar_background != nullptr) {
+            delete this->progress_bar_background;
+            this->progress_bar_background = nullptr;
+        }
+        
+        if(this->progress_bar_foreground != nullptr) {
+            delete this->progress_bar_foreground;
+            this->progress_bar_foreground = nullptr;
+        }
+        
+        return;
+    }
+    
+    auto frame_count = this->gameboy->get_current_frame_index();
+    auto progress = static_cast<double>(frame_count) / static_cast<double>(this->playback_frames);
+    
+    auto width = this->width;
+    auto height = this->height;
+
+    auto bar_width = static_cast<double>(width);
+    
+    if(!this->progress_bar_background) {
+        this->progress_bar_background = this->pixel_buffer_scene->addRect(0.0, this->height - PROGRESS_BAR_HEIGHT, bar_width, PROGRESS_BAR_HEIGHT, QPen(Qt::PenStyle::NoPen), QBrush(QColor(0, 0, 0, 192)));
+    }
+    
+    if(!this->progress_bar_foreground) {
+        this->progress_bar_foreground = this->pixel_buffer_scene->addRect(0.0, this->height - PROGRESS_BAR_HEIGHT, bar_width, PROGRESS_BAR_HEIGHT, QPen(Qt::PenStyle::NoPen), QBrush(QColor(255, 255, 255, 255)));
+    }
+    
+    this->progress_bar_foreground->setRect(0.5, this->height - PROGRESS_BAR_HEIGHT + 0.5, (bar_width - 1.0) * progress, PROGRESS_BAR_HEIGHT - 1.0);
+}
+
+void EmulatorWindow::handle_pixel_buffer_click(double x, double y) {
+    if(this->progress_bar_currently_visible()) {
+        auto scaling = this->scaling_setting();
+        auto width = this->width;
+        auto height = this->height;
+        
+        auto scaled_width = scaling * width;
+        auto scaled_height = scaling * height;
+
+        if(y > (scaled_height - PROGRESS_BAR_HEIGHT * scaling)) {
+            this->gameboy->skip_to_frame(x / scaled_width * this->playback_frames);
+            return;
+        }
+    }
+}
+
+void EmulatorWindow::rebuild_pixel_scene() {
+    if(!this->pixel_buffer_view) {
+        return;
+    }
+    
     // Update the pixel buffer size
     this->pixel_buffer_pixmap = {};
     auto *new_scene = new QGraphicsScene(this->pixel_buffer_view);
@@ -176,16 +240,21 @@ void EmulatorWindow::refresh_scale() {
         for(auto &i : items) {
             new_scene->addItem(i);
         }
+        delete this->pixel_buffer_scene;
     }
     this->pixel_buffer_pixmap_item = new_pixmap;
     this->pixel_buffer_scene = new_scene;
     this->pixel_buffer_view->setScene(this->pixel_buffer_scene);
+    this->update_playback_progress_bar();
 }
 
 void EmulatorWindow::tick() {
-    this->gameboy->copy_frame_buffer(this->pixel_buffer.data());
-    this->pixel_buffer_pixmap.convertFromImage(QImage(reinterpret_cast<const uchar *>(this->pixel_buffer.data()), this->width, this->height, QImage::Format::Format_ARGB32));
-    this->pixel_buffer_pixmap_item->setPixmap(this->pixel_buffer_pixmap);
+    if(!this->gameboy->is_seeking()) {
+        this->gameboy->copy_frame_buffer(this->pixel_buffer.data());
+        this->pixel_buffer_pixmap.convertFromImage(QImage(reinterpret_cast<const uchar *>(this->pixel_buffer.data()), this->width, this->height, QImage::Format::Format_ARGB32));
+        this->pixel_buffer_pixmap_item->setPixmap(this->pixel_buffer_pixmap);
+        this->update_playback_progress_bar();
+    }
 
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
@@ -254,6 +323,12 @@ void EmulatorWindow::tick() {
 
     if(this->currently_recording && (this->temporary_file_time_since_last_save + std::chrono::seconds(15)) < std::chrono::steady_clock::now()) {
         this->update_recording_tmp_file();
+    }
+    
+    // Is this not supposed to be visible?
+    if(this->progress_bar_currently_visible() != (this->progress_bar_foreground != nullptr)) {
+        std::printf("Cleaning up progress bar...\n");
+        this->rebuild_pixel_scene();
     }
 }
 
@@ -499,6 +574,14 @@ bool EmulatorWindow::ignore_recording_speed_changes_setting(int new_setting) {
         setting.setValue("replay/disable_speed_changes_when_recording", static_cast<bool>(new_setting));
     }
     return setting.value("replay/disable_speed_changes_when_recording", 0).toBool();
+}
+
+bool EmulatorWindow::show_progress_bar_setting(int new_setting) {
+    auto setting = get_settings();
+    if(new_setting == 0 || new_setting == 1) {
+        setting.setValue("replay/show_progress_bar", static_cast<bool>(new_setting));
+    }
+    return setting.value("replay/show_progress_bar", 1).toBool();
 }
 
 QRect EmulatorWindow::window_position(std::optional<QRect> new_position) {

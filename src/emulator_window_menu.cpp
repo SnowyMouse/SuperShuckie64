@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 #include <QCheckBox>
 #include <QColor>
+#include <QGraphicsRectItem>
 #include "error.hpp"
 #include "controls_settings_window.hpp"
 #include "emulator_window.hpp"
@@ -90,6 +91,11 @@ void EmulatorWindow::set_up_menu() {
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Start recording replay", this->replays_menu, start_replay_recording(), QKeyCombination(Qt::ControlModifier, Qt::Key_R));
     ADD_ACTION_AND_CONNECT_WITH_SHORTCUT("Stop recording", this->replays_menu, stop_replay_recording(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R));
     ADD_ACTION_AND_CONNECT("Resume recording replay", this->replays_menu, continue_replay_recording());
+    ADD_ACTION_AND_CONNECT_WITH_SHORTCUT_THEN("Show progress bar", this->replays_menu, ignore_recording_speed_changes(), QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_B), \
+        a->setCheckable(true); \
+        a->setChecked(this->show_progress_bar_setting()); \
+        this->show_progress_bar_option = a; \
+    );
     ADD_ACTION_AND_CONNECT_THEN("Disable speed changes when recording", this->replays_menu, ignore_recording_speed_changes(), \
         a->setCheckable(true); \
         a->setChecked(this->ignore_recording_speed_changes_setting()); \
@@ -596,6 +602,7 @@ void EmulatorWindow::load_replay() {
 
     this->set_up_replay_playback_environment();
     this->gameboy->start_replay_playback(*file);
+    this->playback_frames = this->gameboy->get_frame_count();
     this->currently_playing_back_recording = true;
 
     char fmt[600];
@@ -677,6 +684,12 @@ void EmulatorWindow::ignore_recording_speed_changes() {
     this->ignore_recording_speed_changes_setting(ignored);
     this->gameboy->set_ignore_speed_changes_on_replay(ignored);
     this->update_gameboy_speed();
+}
+
+void EmulatorWindow::show_progress_bar() {
+    bool enabled = this->show_progress_bar_option->isChecked();
+    this->show_progress_bar_setting(enabled);
+    this->rebuild_pixel_scene();
 }
 
 void EmulatorWindow::skip_forward() {

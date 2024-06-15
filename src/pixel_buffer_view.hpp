@@ -15,6 +15,7 @@ namespace SuperShuckie64 {
         void dropEvent(QDropEvent *event) override;
         void keyPressEvent(QKeyEvent *event) override;
         void keyReleaseEvent(QKeyEvent *event) override;
+        void mousePressEvent(QMouseEvent *event) override;
     private:
         EmulatorWindow &window;
     };

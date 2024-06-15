@@ -338,7 +338,7 @@ void GameboyContext::run_thread() noexcept {
             if(turbo_enabled_this_run) {
                 GB_set_turbo_mode(this->gameboy.get(), false, true);
                 if(*this->target_frame_turbo <= this->current_frame_index) {
-                    this->target_frame_turbo = {};
+                    this->set_target_frame_turbo({});
                 }
             }
         }
@@ -358,6 +358,17 @@ void GameboyContext::run_thread() noexcept {
 
     this->execute_lock.unlock();
     this->thread_running = false;
+}
+
+void GameboyContext::set_target_frame_turbo(std::optional<std::uint64_t> new_setting) {
+    if(new_setting == std::nullopt) {
+        this->target_frame_turbo = {};
+        this->seeking = false;
+    }
+    else {
+        this->target_frame_turbo = *new_setting;
+        this->seeking = true;
+    }
 }
 
 void GameboyContext::handle_new_input(std::uint8_t new_input) noexcept {
@@ -483,7 +494,7 @@ void GameboyContext::start_replay_playback_inner(ReplayReaderItemCollection &&co
     this->current_playback_offset = 0;
     this->playback_command_count = this->current_playback->len();
     this->current_frame_index = 0;
-    this->target_frame_turbo = {};
+    this->set_target_frame_turbo({});
 
     auto &collection_moved = *this->current_playback;
     auto first = collection_moved[0];
@@ -554,6 +565,13 @@ void GameboyContext::skip_to_frame(std::uint64_t frame) noexcept {
     this->unlock_context();
 }
 
+std::uint64_t GameboyContext::get_frame_count() noexcept {
+    this->acquire_context();
+    auto result = this->total_playback_frames;
+    this->unlock_context();
+    return result;
+}
+
 void GameboyContext::skip_to_frame_inner(std::uint64_t frame) noexcept {
     if(!this->is_playing_back_inner()) {
         return;
@@ -598,13 +616,13 @@ void GameboyContext::skip_to_frame_inner(std::uint64_t frame) noexcept {
     }
 
     // We'll now need to turbo to this frame.
-    this->target_frame_turbo = frame;
+    this->set_target_frame_turbo(frame);
 }
 
 void GameboyContext::stop_replay_playback() {
     this->acquire_context();
     this->current_playback = {};
-    this->target_frame_turbo = {};
+    this->set_target_frame_turbo({});
     this->replay_to_append = {};
     this->unlock_context();
 }

@@ -67,3 +67,11 @@ void PixelBufferView::keyReleaseEvent(QKeyEvent *event) {
         this->window.handle_keyboard_event(*key_maybe, false);
     }
 }
+
+void PixelBufferView::mousePressEvent(QMouseEvent *event) {
+    auto pos = event->position();
+    auto x = pos.x();
+    auto y = pos.y();
+    
+    this->window.handle_pixel_buffer_click(x, y);
+}

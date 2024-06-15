@@ -21,6 +21,7 @@
 class QGraphicsScene;
 class QGraphicsPixmapItem;
 class QMenu;
+class QGraphicsRectItem;
 
 struct SDL_ControllerDeviceEvent;
 
@@ -57,6 +58,7 @@ namespace SuperShuckie64 {
         bool currently_recording = false;
         bool currently_playing_back_recording = false;
         bool show_fps = true;
+        std::uint64_t playback_frames = 0;
 
         bool suppress_game_input = false;
         bool valid = false;
@@ -64,6 +66,9 @@ namespace SuperShuckie64 {
         double turbo_speed = 4.0;
         double slow_speed = 0.25;
         void update_gameboy_speed();
+        
+        QGraphicsRectItem *progress_bar_background = nullptr;
+        QGraphicsRectItem *progress_bar_foreground = nullptr;
 
         void refresh_scale();
         void tick();
@@ -78,6 +83,8 @@ namespace SuperShuckie64 {
         bool manually_paused = false;
         QAction *manually_pause_option;
         void refresh_pause_state() noexcept;
+        
+        QAction *show_progress_bar_option;
 
         QMenu *gameplay_menu;
         QMenu *replays_menu;
@@ -87,7 +94,7 @@ namespace SuperShuckie64 {
         QPixmap pixel_buffer_pixmap;
         QGraphicsPixmapItem *pixel_buffer_pixmap_item = nullptr;
         std::vector<std::uint32_t> pixel_buffer;
-        PixelBufferView *pixel_buffer_view;
+        PixelBufferView *pixel_buffer_view = nullptr;
         QGraphicsScene *pixel_buffer_scene = nullptr;
 
         std::filesystem::path temporary_file_path;
@@ -97,6 +104,8 @@ namespace SuperShuckie64 {
         bool make_recording_tmp_file();
         void update_recording_tmp_file();
 
+        void update_playback_progress_bar();
+        void rebuild_pixel_scene();
 
         std::filesystem::path assign_user_data_file_name(const char *prefix, RomUserDataType data_type);
 
@@ -122,6 +131,7 @@ namespace SuperShuckie64 {
         bool ignore_replay_speed_changes_setting(int new_setting = -1);
         QAction *ignore_replay_speed_changes_option = nullptr;
         bool ignore_recording_speed_changes_setting(int new_setting = -1);
+        bool show_progress_bar_setting(int new_setting = -1);
         QAction *ignore_recording_speed_changes_option = nullptr;
         bool loop_playback_setting(int new_setting = -1);
         QAction *loop_playback_option = nullptr;
@@ -157,6 +167,8 @@ namespace SuperShuckie64 {
         void add_keyboard();
         void handle_keyboard_event(std::uint8_t key, bool on);
         void update_color_on_gb();
+        void handle_pixel_buffer_click(double x, double y);
+        bool progress_bar_currently_visible();
 
         /**
          * Use if this is the last chance for the user to save
@@ -193,6 +205,7 @@ namespace SuperShuckie64 {
         void create_save_state_inplace();
         void open_save_state_inplace();
         void open_gbc_in_gb_settings_dialog();
+        void show_progress_bar();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

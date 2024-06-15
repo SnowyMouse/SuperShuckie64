@@ -95,10 +95,22 @@ namespace SuperShuckie64 {
         std::uint64_t get_current_frame_index() noexcept;
 
         /**
+         * Get the maximum number of frames.
+         */
+        std::uint64_t get_frame_count() noexcept;
+
+        /**
          * Get the current average frame rate
          */
         double average_fps() noexcept {
             return (1000000000.0 / this->average_ns_per_frame);
+        }
+        
+        /**
+         * Get whether or not the emulator is seeking (should not get frames)
+         */
+        bool is_seeking() noexcept {
+            return this->seeking;
         }
 
         /**
@@ -164,6 +176,7 @@ namespace SuperShuckie64 {
         std::atomic_bool paused = true;
         std::atomic_bool reset_queued = false;
         std::atomic_bool loop_playback = false;
+        std::atomic_bool seeking = false;
 
         std::optional<PaletteOverride> gbc_gb_palette_override = {};
 
@@ -210,6 +223,8 @@ namespace SuperShuckie64 {
 
         void handle_new_input(std::uint8_t new_input) noexcept;
         void handle_set_speed(std::uint16_t new_speed) noexcept;
+        
+        void set_target_frame_turbo(std::optional<std::uint64_t> new_setting);
 
         std::unique_ptr<GB_gameboy_t, void (*)(GB_gameboy_t *)> gameboy;
 
