@@ -238,10 +238,16 @@ void GameboyContext::on_vblank() noexcept {
         std::uint8_t new_input_value = this->pending_input;
         std::uint8_t rapid_fire_input_value = this->rapid_fire_input;
 
-        // Handle rapid fire duty cycle
-        auto new_step_value = (this->rapid_fire_duty_cycle_step + 1) % this->rapid_fire_duty_cycle;
-        if (!(this->rapid_fire_duty_cycle_step = new_step_value)) {
-            this->rapid_fire_state = !this->rapid_fire_state;
+        // If no rapid fire is engaged, reset the duty cycle, and prime the state so we keep input lag as low as possible
+        if (rapid_fire_input_value == 0) {
+            this->rapid_fire_duty_cycle_step = 0;
+            this->rapid_fire_state = true;
+        }
+        else {
+            auto new_step_value = (this->rapid_fire_duty_cycle_step + 1) % this->rapid_fire_duty_cycle;
+            if (!(this->rapid_fire_duty_cycle_step = new_step_value)) {
+                this->rapid_fire_state = !this->rapid_fire_state;
+            }
         }
 
         // On
