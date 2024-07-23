@@ -32,6 +32,15 @@ add_executable(supershuckie
     src/controls_settings_window.cpp
 )
 
+set_target_properties(supershuckie PROPERTIES
+    MACOSX_BUNDLE "TRUE"
+    MACOSX_BUNDLE_NAME "SuperShuckie"
+    MACOSX_BUNDLE_COPYRIGHT "Snowy"
+    OUTPUT_NAME "SuperShuckie"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.snowymouse.supershuckie"
+    MACOSX_BUNDLE_ICON_FILE "supershuckie.icns"
+)
+
 add_library(sameboy STATIC
     "${SAMEBOY_DIR}/Core/apu.c"
     "${SAMEBOY_DIR}/Core/camera.c"

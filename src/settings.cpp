@@ -7,13 +7,17 @@
 using namespace SuperShuckie64;
 
 static std::filesystem::path get_settings_directory() {
-    // TODO: Figure this out for later
-    #define PORTABLE
-    #ifdef PORTABLE
-    return std::filesystem::path(QCoreApplication::applicationDirPath().toStdString());
-    #else
-    return std::filesystem::path(QDir::currentPath().toStdString());
+    auto path = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString());
+    #ifdef __APPLE__
+        if(path.filename().string() == "MacOS") {
+            path = path.parent_path().parent_path().parent_path();
+            if(path.string() == "/Applications") {
+                auto docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation).toStdString();
+                return std::filesystem::path(docs) / "SuperShuckie Data";
+            }
+        }
     #endif
+    return path;
 }
 
 std::filesystem::path SuperShuckie64::get_settings_path() {

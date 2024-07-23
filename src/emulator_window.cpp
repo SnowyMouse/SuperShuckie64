@@ -73,6 +73,9 @@ EmulatorWindow::EmulatorWindow(const std::optional<std::filesystem::path> &defau
     this->handle_loaded_rom();
 
     this->setGeometry(this->window_position());
+
+    // workaround scale not being set properly on macOS
+    QMetaObject::invokeMethod(this, "refresh_scale", Qt::QueuedConnection);
 }
 
 bool EmulatorWindow::load_and_start_rom(const std::optional<std::filesystem::path> &path) {

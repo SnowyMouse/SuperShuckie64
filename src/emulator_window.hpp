@@ -70,7 +70,6 @@ namespace SuperShuckie64 {
         QGraphicsRectItem *progress_bar_background = nullptr;
         QGraphicsRectItem *progress_bar_foreground = nullptr;
 
-        void refresh_scale();
         void tick();
         QTimer ticker;
 
@@ -206,6 +205,7 @@ namespace SuperShuckie64 {
         void open_save_state_inplace();
         void open_gbc_in_gb_settings_dialog();
         void show_progress_bar();
+        void refresh_scale();
 
     signals:
         void on_device_input(SDL_ControllerButtonEvent &, ControllerInputDevice &);

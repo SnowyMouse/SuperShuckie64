@@ -38,10 +38,10 @@ namespace SuperShuckie64 {
         ControlSettingsField *selected_control_setting_box = nullptr;
 
         void handle_input(std::uint8_t input, ControlType control_type);
-        void clear_selected_input();
 
     private slots:
         void regenerate_controls_container();
+        void clear_selected_input();
     };
 
     class ControlSettingsField: public QLineEdit {

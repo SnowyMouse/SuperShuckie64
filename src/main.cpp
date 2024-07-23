@@ -169,7 +169,9 @@ int main(int argc, char **argv) {
     return result;
 }
 
+#ifdef _WIN32
 extern "C" void getline() {
     std::printf("What is getline()???\n");
     std::terminate();
 }
+#endif

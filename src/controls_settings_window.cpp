@@ -255,7 +255,8 @@ void ControlSettingsField::mousePressEvent(QMouseEvent *e) {
     }
 
     if(button & Qt::RightButton) {
+        e->ignore();
         this->settings_window.selected_control_setting_box = this;
-        this->settings_window.clear_selected_input();
+        QMetaObject::invokeMethod(&this->settings_window, "clear_selected_input", Qt::QueuedConnection);
     }
 }

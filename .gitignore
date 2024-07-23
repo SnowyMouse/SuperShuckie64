@@ -4,3 +4,6 @@ target/
 *.sav
 Cargo.lock
 *:Zone.Identifier
+.idea
+.DS_Store
+icon/supershuckie.iconset

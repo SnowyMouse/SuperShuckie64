@@ -703,7 +703,7 @@ void EmulatorWindow::skip_backward() {
     if(!this->currently_playing_back_recording) {
         return;
     }
-    auto frame = this->gameboy->get_current_frame_index();
+    std::size_t frame = this->gameboy->get_current_frame_index();
     this->gameboy->skip_to_frame(frame - std::min(frame, static_cast<std::size_t>(600)));
 }
 
