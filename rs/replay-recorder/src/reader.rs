@@ -98,6 +98,47 @@ pub struct ReplayReaderItem {
     packet: Box<dyn Packet>
 }
 
+impl PartialEq for ReplayReaderItem {
+    fn eq(&self, other: &Self) -> bool {
+        if other.delay != self.delay || self.packet_type != other.packet_type {
+            return false;
+        }
+
+        if self.packet.get_packet_type() != other.packet.get_packet_type() {
+            return false;
+        }
+
+        macro_rules! check_eq {
+            ($t:tt) => {
+                self.get_packet_if_matches::<$t>().unwrap() == other.get_packet_if_matches::<$t>().unwrap()
+            };
+        }
+
+        match self.packet.get_packet_type() {
+            PacketType::AddSaveState => check_eq!(AddSaveState),
+            PacketType::CustomData => check_eq!(CustomData),
+            PacketType::LoadSRAM => check_eq!(LoadSRAM),
+            PacketType::ChangeGameSpeed => check_eq!(ChangeGameSpeed),
+            PacketType::Bookmark => check_eq!(Bookmark),
+            PacketType::SetInput8 => check_eq!(SetInput8),
+            PacketType::SetInput16 => check_eq!(SetInput16),
+            PacketType::SetInput32 => check_eq!(SetInput32),
+            PacketType::SetInput64 => check_eq!(SetInput64),
+            PacketType::SetInputData8 => check_eq!(SetInputData8),
+            PacketType::SetInputData16 => check_eq!(SetInputData16),
+            PacketType::SetInputData32 => check_eq!(SetInputData32),
+            PacketType::SetInputData64 => check_eq!(SetInputData64),
+            PacketType::LoadSaveState => check_eq!(LoadSaveState),
+            PacketType::WriteRAMByteAddr32 => check_eq!(WriteRAMByteAddr32),
+            PacketType::WriteRAMByteAddr64 => check_eq!(WriteRAMByteAddr64),
+            PacketType::WriteROMByteOffset32 => check_eq!(WriteROMByteOffset32),
+            PacketType::WriteROMByteOffset64 => check_eq!(WriteROMByteOffset64),
+            PacketType::ResetSystem => check_eq!(ResetSystem),
+            PacketType::NoOp => check_eq!(NoOp),
+        }
+    }
+}
+
 impl ReplayReaderItem {
     /// Get the packet if it matches the desired type.
     pub fn get_packet_if_matches<P: Packet>(&self) -> Option<&P> {
