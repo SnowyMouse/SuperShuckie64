@@ -292,7 +292,9 @@ void GameboyContext::on_vblank(GB_gameboy_t *gb, GB_vblank_type_t type) noexcept
     }
     #endif
 
-    resolve_instance(gb).vblank_performed = true;
+    auto &instance = resolve_instance(gb);
+    instance.vblank_performed = true;
+    instance.total_frames_displayed += 1;
 }
 
 #ifdef _WIN32
@@ -342,12 +344,15 @@ void GameboyContext::run_thread() noexcept {
                 }
             }
         }
-        else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5)); // prevent busy-waiting
-        }
 
         // Check if something needs something.
         this->execute_lock.unlock();
+
+        // If paused, we can sleep to prevent busy waiting.
+        if(is_paused) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
         this->execute_wait.lock();
         this->execute_lock.lock();
         this->execute_wait.unlock();

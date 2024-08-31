@@ -130,6 +130,15 @@ namespace SuperShuckie64 {
         }
 
         /**
+         * Get the total number of frames rendered.
+         *
+         * This is useful for determining if the renderer needs to redraw it.
+         */
+        std::uint32_t get_total_frames_displayed() const noexcept {
+            return this->total_frames_displayed;
+        }
+
+        /**
          * Creates a save state and returns it.
          */
         std::vector<std::uint8_t> create_save_state_unindexed();
@@ -177,6 +186,7 @@ namespace SuperShuckie64 {
         std::atomic_bool reset_queued = false;
         std::atomic_bool loop_playback = false;
         std::atomic_bool seeking = false;
+        std::atomic_uint32_t total_frames_displayed = 0;
 
         std::optional<PaletteOverride> gbc_gb_palette_override = {};
 

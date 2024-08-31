@@ -132,6 +132,9 @@ void EmulatorWindow::reload_current_rom_data() {
         this->update_save_name_in_title_bar();
         this->update_gameboy_speed();
     }
+    else { 
+        this->gameboy->set_paused(true);
+    }
 }
 
 void EmulatorWindow::update_save_name_in_title_bar() {
@@ -252,11 +255,16 @@ void EmulatorWindow::rebuild_pixel_scene() {
 }
 
 void EmulatorWindow::tick() {
-    if(!this->gameboy->is_seeking()) {
-        this->gameboy->copy_frame_buffer(this->pixel_buffer.data());
-        this->pixel_buffer_pixmap.convertFromImage(QImage(reinterpret_cast<const uchar *>(this->pixel_buffer.data()), this->width, this->height, QImage::Format::Format_ARGB32));
-        this->pixel_buffer_pixmap_item->setPixmap(this->pixel_buffer_pixmap);
-        this->update_playback_progress_bar();
+    auto total_frames_displayed_gb = this->gameboy->get_total_frames_displayed();
+    if(this->last_read_total_frame_counter != total_frames_displayed_gb) {
+        this->last_read_total_frame_counter = total_frames_displayed_gb;
+
+        if(!this->gameboy->is_seeking()) {
+            this->gameboy->copy_frame_buffer(this->pixel_buffer.data());
+            this->pixel_buffer_pixmap.convertFromImage(QImage(reinterpret_cast<const uchar *>(this->pixel_buffer.data()), this->width, this->height, QImage::Format::Format_ARGB32));
+            this->pixel_buffer_pixmap_item->setPixmap(this->pixel_buffer_pixmap);
+            this->update_playback_progress_bar();
+        }
     }
 
     SDL_Event event;

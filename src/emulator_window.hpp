@@ -135,6 +135,7 @@ namespace SuperShuckie64 {
         bool loop_playback_setting(int new_setting = -1);
         QAction *loop_playback_option = nullptr;
         std::optional<std::string> recording_file;
+        std::uint32_t last_read_total_frame_counter = 0xFFFFFF00;
         GameboyContext::PaletteOverride gb_color_override_setting(const std::optional<GameboyContext::PaletteOverride> &new_palette = std::nullopt);
 
         // WARNING: Does not save SRAM
